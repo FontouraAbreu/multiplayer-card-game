@@ -129,6 +129,10 @@ class Player:
         if self.lifes == 0:
             self.is_alive = False
 
+    def print_lifes(self):
+        for _ in range(0, self.lifes):
+            print("❤️", end="  ")
+
 class Card:
     def __init__(self, suit, rank, value):
         self.suit = suit
@@ -136,7 +140,7 @@ class Card:
         self.value = value
 
     def __repr__(self):
-        return f"{self.rank} of {self.suit} (Value: {self.value})"
+        return f"{self.rank} {self.suit} ({self.value})"
 
 class Deck:
     ranks = ["4", "5", "6", "7", "Q", "J", "K", "A", "2", "3"]

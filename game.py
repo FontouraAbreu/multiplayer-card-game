@@ -24,6 +24,7 @@ def main(args):
     print(game)
     print("Dealing cards...", game.round)
     for player in game:
+        player.print_lifes()
         print(f"{player.name_port()} hand: {player.cards}")
 
 
