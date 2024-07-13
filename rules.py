@@ -86,6 +86,7 @@ class Round:
         self.round_number = round_number
         self.deck = Deck(self.shackle)
         self.deck.shuffle()
+        self.new_shackle()
         self.num_players = num_players
         self.cards_per_player = cards_per_player
         self.current_player = 0
@@ -126,10 +127,14 @@ class Round:
     def play_card(self, card, value, player):
         self.cards.append({"card": card, "value": value, "player": player})
         return None
-
+    
     def deal_cards(self):
         return self.deck.deal(self.num_players, self.cards_per_player)
-
+    
+    def new_shackle(self):
+        self.shackle = random.choice(["4", "5", "6", "7", "Q", "J", "K", "A", "2", "3"])
+        self.deck.__init__(self.shackle)
+    
     def __repr__(self):
         return f"Round {self.round_number} with {self.num_players} players, shackled at {self.shackle}"
 
@@ -151,6 +156,7 @@ class Player:
             self.is_alive = False
 
     def print_lifes(self):
+        print(f"\nJogador {self.port}")
         for _ in range(0, self.lifes):
             print("❤️", end="  ")
 
@@ -189,6 +195,22 @@ class Deck:
 
     def shuffle(self):
         random.shuffle(self.cards)
+
+    
+    def distribute_cards(self, players, cards_per_player):
+        if len(self.cards) < len(players) * cards_per_player:
+            raise ValueError("Not enough cards to deal")
+        for player in players:
+            player.cards = [self.cards.pop() for _ in range(cards_per_player)]
+            
+        # new_cards = self.round.deal_cards()
+        # for player, cards in zip(self.players, new_cards):
+        #     player.cards = cards
+        
+
+    def new_shackle(self):
+        self.shackle_rank = random.choice(self.ranks)
+        self.__init__(self.shackle_rank)
 
     def deal(self, num_players, cards_per_player):
         if num_players * cards_per_player > len(self.cards):
