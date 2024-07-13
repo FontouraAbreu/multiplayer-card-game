@@ -10,48 +10,21 @@ class State(Enum):
     GAME_OVER = 5
 
 class Game:
-    def __init__(self, num_players, cards_per_player, lifes):
+    def __init__(self, num_players, cards_per_player, turns):
         self.num_players = num_players
         self.cards_per_player = cards_per_player
-        self.lifes = lifes
+        self.turns = turns
         self.round = Round(1, num_players, cards_per_player)
-        self.players = [Player(port, lifes, cards, True, False, color) for port, cards, color in zip(range(1, num_players + 1), self.round.deal_cards(), ["red", "blue", "green", "yellow", "purple", "orange", "brown", "pink"])]
+        self.players = [Player(port, turns, cards, True, False, color) for port, cards, color in zip(range(1, num_players + 1), self.round.deal_cards(), ["red", "blue", "green", "yellow", "purple", "orange", "brown", "pink"])]
         self.players[0].is_dealer = True
         self.current_player = 0
-        self.current_card = None
-        self.current_value = None
         self.state = State.WAITING
-        self.index = 0  # Inicialize o índice para iteração
-
-    def next_player(self):
-        self.current_player = (self.current_player + 1) % self.num_players
-
-    def next_turn(self):
-        self.current_card = None
-        self.current_value = None
-        self.next_player()
-
-    def play_card(self, card):
-        if self.current_card is None:
-            self.current_card = card
-            self.current_value = card.value
-        elif card.value > self.current_value:
-            self.current_card = card
-            self.current_value = card.value
-        else:
-            self.players[self.current_player].take_damage()
-            self.next_turn()
-
-        if all(not player.is_alive for player in self.players):
-            return "Game Over"
-
-        return None
 
     def __repr__(self):
-        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.lifes} lifes"
+        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"
 
     def __str__(self):
-        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.lifes} lifes"
+        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"
 
     def __len__(self):
         return self.num_players
@@ -102,22 +75,6 @@ class Round:
         self.current_card = None
         self.current_value = None
         self.next_player()
-
-    def play_card(self, card):
-        if self.current_card is None:
-            self.current_card = card
-            self.current_value = card.value
-        elif card.value > self.current_value:
-            self.current_card = card
-            self.current_value = card.value
-        else:
-            self.players[self.current_player].take_damage()
-            self.next_turn()
-
-        if all(not player.is_alive for player in self.players):
-            return "Game Over"
-
-        return None
     
     # Obj with bet and player of bet
     def play_bet(self, bet, player):
@@ -198,6 +155,8 @@ class Deck:
 
     
     def distribute_cards(self, players, cards_per_player):
+        self.shuffle()
+
         if len(self.cards) < len(players) * cards_per_player:
             raise ValueError("Not enough cards to deal")
         for player in players:
