@@ -1,0 +1,5 @@
+# BEGIN: /home/simon/Desktop/ufpr/multiplayer-card-game/.gitignore
+*.pyc
+__pycache__/
+venv/
+# END: /home/simon/Desktop/ufpr/multiplayer-card-game/.gitignore
