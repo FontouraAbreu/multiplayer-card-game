@@ -1,4 +1,13 @@
 import random
+from enum import Enum
+
+#ENUM STATE GAME
+class State(Enum):
+    WAITING = 1
+    DEALING = 2
+    BETING = 3
+    PLAYING = 4
+    GAME_OVER = 5
 
 class Game:
     def __init__(self, num_players, cards_per_player, lifes):
@@ -11,6 +20,7 @@ class Game:
         self.current_player = 0
         self.current_card = None
         self.current_value = None
+        self.state = State.WAITING
         self.index = 0  # Inicialize o índice para iteração
 
     def next_player(self):
@@ -81,6 +91,8 @@ class Round:
         self.current_player = 0
         self.current_card = None
         self.current_value = None
+        self.cards = []
+        self.bets = []
 
     def next_player(self):
         self.current_player = (self.current_player + 1) % self.num_players
@@ -104,6 +116,15 @@ class Round:
         if all(not player.is_alive for player in self.players):
             return "Game Over"
 
+        return None
+    
+    # Obj with bet and player of bet
+    def play_bet(self, bet, player):
+        self.bets.append({"bet": bet, "player": player})
+        return None
+    
+    def play_card(self, card, value, player):
+        self.cards.append({"card": card, "value": value, "player": player})
         return None
 
     def deal_cards(self):
