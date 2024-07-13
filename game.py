@@ -13,14 +13,14 @@ def main(args):
     """
     if len(args) < 3:
         print("args", args)
-        print("Usage: python game.py <number_of_players> <cards_per_player> <lifes>")
+        print("Usage: python game.py <number_of_players> <cards_per_player> <turns>")
         return
 
     num_players = int(args[0])
     cards_per_player = int(args[1])
-    lifes = int(args[2])
+    turns = int(args[2])
 
-    game = Game(num_players, cards_per_player, lifes)
+    game = Game(num_players, cards_per_player, turns)
     
     print(game)
 
@@ -32,15 +32,17 @@ def main(args):
     while not game.state == "GAME_OVER":
         game.state = "DEALING"
 
-        while game.round.round_number <= 3:
+        while game.round.round_number <= game.turns:
             if game.state == "DEALING":
                 for player in game:
                     player.print_lifes()
                     
                 game.round.new_shackle()
                 game.round.deck.distribute_cards(game.players, game.cards_per_player)
-                print("\n\nRodada:", game.round.round_number)
+                print("\n\n=====================================")
+                print("Rodada:", game.round.round_number)
                 print("A manilha é:", game.round.shackle)
+                print("=====================================\n\n    ")
                 game.state = "BETTING"
 
             if game.state == "BETTING":
@@ -51,9 +53,8 @@ def main(args):
                     continue
 
                 player = queue.get_nowait()
-                print(f"{player.name_port()} turn")
-                print(f"{player.name_port()} lifes: {player.lifes}")
-                print(f"{player.name_port()} cards: {player.cards}")
+                print(f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:")
+                print(player.cards)
 
                 # Get the player's bet
                 print(f"{player.name_port()} quantas rodadas você faz?")
@@ -68,17 +69,15 @@ def main(args):
                 game.round.play_bet(bet, player.port)
 
             if game.state == "PLAYING":
-                print("\n\n\nRodada:", game.round.round_number)
-                print(f"Apostas: {game.round.bets}")
-                print("A manilha é:", game.round.shackle)
+                print(f" DEBUG Apostas: {game.round.bets}")
 
                 for _ in range(game.cards_per_player):
                     if all(player.cards for player in game):
                         while queue.qsize() > 0:
                             player = queue.get_nowait()
-                            print(f"Player {player.name_port()} turn")
-                            print(f"Player {player.name_port()} lifes: {player.lifes}")
-                            print(f"Player {player.name_port()} cards: {player.cards}")
+
+                            print(f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:")
+                            print(player.cards)
 
                             # Get the player's card
                             print(f"Player {player.name_port()} qual carta você joga?")
