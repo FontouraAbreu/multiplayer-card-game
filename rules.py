@@ -20,6 +20,60 @@ class Game:
         self.current_player = 0
         self.state = State.WAITING
 
+    def put_players_queue(self, queue):
+        for player in self.players:
+            if player.is_alive:
+                queue.put_nowait(player)
+    
+    def calculate_next_dealer(self):
+        for player in self.players:
+            if player.is_dealer:
+                player.is_dealer = False
+                break
+
+        for i, player in enumerate(self.players):
+            if player.port == self.players[-1].port:
+                self.players[0].is_dealer = True
+                break
+            elif player.is_dealer:
+                self.players[i + 1].is_dealer = True
+                break
+    
+    def calculate_player_lifes(self):
+        for player in self.players:
+            for bet in self.round.bets:
+                if bet['player'] == player.port:
+                    if bet['bet'] != 0:
+                        player.lifes -= abs(bet['bet'])
+                    break
+
+    def check_game_over(self):
+        alive_count = sum(1 for player in self.players if player.is_alive)
+
+        # Verificar se restou apenas um jogador vivo
+        if alive_count == 1:
+            for player in self.players:
+                if player.is_alive:
+                    print(f"O jogador {player.port} ganhou!")
+                    self.state = "GAME_OVER"
+                    break
+
+        # Verificar se nenhum jogador está vivo
+        elif alive_count == 0:
+            self.state = "GAME_OVER"
+
+        # Verificar se o número de rodadas atingiu o limite de turnos
+        elif self.round.round_number > self.turns:
+            self.state = "GAME_OVER"
+
+        # Verificar se todos os jogadores estão sem cartas
+        elif all(len(player.cards) == 0 for player in self.players):
+            self.state = "DEALING"
+
+        # Continuar jogando se nenhuma das condições acima for satisfeita
+        else:
+            self.state = "PLAYING"
+
     def __repr__(self):
         return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"
 
@@ -63,18 +117,9 @@ class Round:
         self.num_players = num_players
         self.cards_per_player = cards_per_player
         self.current_player = 0
-        self.current_card = None
-        self.current_value = None
         self.cards = []
         self.bets = []
 
-    def next_player(self):
-        self.current_player = (self.current_player + 1) % self.num_players
-
-    def next_turn(self):
-        self.current_card = None
-        self.current_value = None
-        self.next_player()
     
     # Obj with bet and player of bet
     def play_bet(self, bet, player):
@@ -88,9 +133,28 @@ class Round:
     def deal_cards(self):
         return self.deck.deal(self.num_players, self.cards_per_player)
     
+    def clean_round(self):
+        self.cards = []
+        self.bets = []
+        self.round_number += 1
+    
     def new_shackle(self):
         self.shackle = random.choice(["4", "5", "6", "7", "Q", "J", "K", "A", "2", "3"])
         self.deck.__init__(self.shackle)
+
+    def calculate_winner_round(self):
+        # Encontrar o objeto com o maior valor
+        max_card = max(self.cards, key=lambda x: x['value'])
+        winner_player = max_card['player']
+
+        # Diminuir a aposta do jogador vencedor
+        for bet in self.bets:
+            if bet['player'] == winner_player:
+                bet['bet'] -= 1
+                break
+    
+        # Vencedor da rodada
+        return winner_player
     
     def __repr__(self):
         return f"Round {self.round_number} with {self.num_players} players, shackled at {self.shackle}"
