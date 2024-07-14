@@ -1,4 +1,5 @@
 import random
+from RingNetwork import RingNetwork
 from enum import Enum
 
 
@@ -35,6 +36,7 @@ class Game:
         self.players[0].is_dealer = True
         self.current_player = 0
         self.state = State.WAITING
+        self.ringNetwork = RingNetwork(num_players)
 
     def put_players_queue(self, queue):
         """
@@ -257,6 +259,8 @@ class Player:
         self.is_alive = is_alive
         self.is_dealer = is_dealer
         self.color = color
+        self.message_queue = []  # Fila de mensagens do jogador
+        self.has_token = False  # O jogador tem o token?
 
     def name_port(self):
         """
