@@ -33,6 +33,7 @@ def main(args):
         print(f"Current State: {game.state}")
         
         if game.state == "DEALING":
+
             for player in game.players:
                 player.print_lifes()
             
@@ -105,9 +106,18 @@ def main(args):
             
             # Check if all cards have been played
             if all(len(player.cards) == 0 for player in game.players):
-                print("Todas as cartas foram jogadas. Iniciando nova rodada.")
                 game.round.clean_round()
+                alive_count = sum(1 for player in game.players if player.is_alive)
+
+                if alive_count == 1:
+                    for player in game.players:
+                        if player.is_alive:
+                            print(f"O jogador {player.port} ganhou!")
+                            game.state = "GAME_OVER"
+                            return
+
                 if game.round.round_number <= game.turns:
+                    print("Todas as cartas foram jogadas. Iniciando nova rodada.")
                     game.state = "DEALING"
                 else:
                     game.state = "GAME_OVER"

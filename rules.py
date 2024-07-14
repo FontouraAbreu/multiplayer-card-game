@@ -39,6 +39,14 @@ class Game:
                 self.players[i + 1].is_dealer = True
                 break
     
+    def check_lifes(self):
+        for player in self.players:
+            if player.lifes <= 0:
+                player.is_alive = False
+
+        #retorna a quantidade de jogadores vivos
+        return sum(1 for player in self.players if player.is_alive)
+    
     def calculate_player_lifes(self):
         for player in self.players:
             for bet in self.round.bets:
@@ -46,6 +54,12 @@ class Game:
                     if bet['bet'] != 0:
                         player.lifes -= abs(bet['bet'])
                     break
+        
+        for player in self.players:
+            if player.lifes <= 0:
+                player.is_alive = False
+                    
+        
 
     def check_game_over(self):
         alive_count = sum(1 for player in self.players if player.is_alive)
@@ -54,9 +68,8 @@ class Game:
         if alive_count == 1:
             for player in self.players:
                 if player.is_alive:
-                    print(f"O jogador {player.port} ganhou!")
                     self.state = "GAME_OVER"
-                    break
+                    return
 
         # Verificar se nenhum jogador está vivo
         elif alive_count == 0:
