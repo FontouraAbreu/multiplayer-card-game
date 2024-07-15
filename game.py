@@ -1,133 +1,159 @@
-import asyncio
-import logging
-import sys
-from connection import serve_game
-from rules import Game
+import random
+from enum import Enum
+from RingNetwork import RingNetwork
+from round import Round
+from player import Player
 
-queue = asyncio.Queue()
 
-def main(args):
+# ENUM STATE GAME
+class State(Enum):
+    WAITING = 1
+    DEALING = 2
+    BETING = 3
+    PLAYING = 4
+    GAME_OVER = 5
+
+
+class Game:
     """
-    Launch a client/server
+    Classe para representar o jogo
+    num_players: número de jogadores
+    cards_per_player: número de cartas por jogador
+    turns: número de turnos
     """
-    if len(args) < 3:
-        print("args", args)
-        print("Usage: python game.py <number_of_players> <cards_per_player> <turns>")
-        return
 
-    num_players = int(args[0])
-    cards_per_player = int(args[1])
-    turns = int(args[2])
+    def __init__(self, num_players, cards_per_player, turns):
+        self.num_players = num_players
+        self.cards_per_player = cards_per_player
+        self.turns = turns
+        self.round = Round(1, num_players, cards_per_player)
+        self.players = [
+            Player(port, turns, cards, True, False, color)
+            for port, cards, color in zip(
+                range(1, num_players + 1),
+                self.round.deal_cards(),
+                ["red", "blue", "green", "yellow", "purple", "orange", "brown", "pink"],
+            )
+        ]
+        self.players[0].is_dealer = True
+        self.current_player = 0
+        self.state = State.WAITING
+        self.ringNetwork = RingNetwork(num_players)
 
-    game = Game(num_players, cards_per_player, turns)
-    
-    print(game)
+    def put_players_queue(self, queue):
+        """
+        Função para adicionar os jogadores na fila de jogadores
+        queue: fila de jogadores
+        """
+        for player in self.players:
+            if player.is_alive:
+                queue.put_nowait(player)  # Adiciona o jogador na fila de jogadores
 
-    # Add players to the queue
-    game.put_players_queue(queue)
-    game.state = "DEALING"
+    def calculate_next_dealer(self):
+        """
+        Função para calcular o próximo dealer
+        """
+        for player in self.players:
+            if player.is_dealer:
+                player.is_dealer = False
+                break
 
-    # Make a while loop to keep the game running
-    print("Starting game...")
-    while game.state != "GAME_OVER":
-        print(f"Current State: {game.state}")
-        
-        if game.state == "DEALING":
+        # seta o próximo dealer
+        for i, player in enumerate(self.players):
+            # se o dealer for o último jogador, o próximo dealer é o primeiro
+            if player.port == self.players[-1].port:
+                self.players[0].is_dealer = True
+                break
+            elif player.is_dealer:
+                self.players[i + 1].is_dealer = True
+                break
 
-            for player in game.players:
-                player.print_lifes()
-            
-            game.round.new_shackle()
-            game.round.deck.distribute_cards(game.players, game.cards_per_player)
-            print("\n\n=====================================")
-            print("Rodada:", game.round.round_number)
-            print("A manilha é:", game.round.shackle)
-            print("=====================================\n\n    ")
-            game.state = "BETTING"
+    def check_lifes(self):
+        """
+        Função para verificar a quantidade de jogadores vivos
+        return: quantidade de jogadores vivos
+        """
+        for player in self.players:
+            if player.lifes <= 0:
+                player.is_alive = False
 
-        elif game.state == "BETTING":
-            if queue.empty():
-                game.state = "PLAYING"
-                for player in game.players:
-                    queue.put_nowait(player)
-                continue
+        # retorna a quantidade de jogadores vivos
+        return sum(1 for player in self.players if player.is_alive)
 
-            player = queue.get_nowait()
-            print(f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:")
-            print(player.cards)
+    def calculate_player_lifes(self):
+        """
+        Função para calcular a quantidade de vidas dos jogadores
 
-            # Get the player's bet
-            print(f"{player.name_port()} quantas rodadas você faz?")
-            bet = int(input())
-
-            # Sum of bets cannot be equal to the number of rounds
-            if queue.qsize() == 0 and sum([bet['bet'] for bet in game.round.bets]) == game.round.cards_per_player:
-                print("A soma das apostas deve ser diferente do número de rodadas")
-                print("Faça uma nova aposta:")
-                bet = int(input())
-
-            game.round.play_bet(bet, player.port)
-
-        elif game.state == "PLAYING":
-            print(f" DEBUG Apostas: {game.round.bets}")
-            
-            for _ in range(game.cards_per_player):
-                if any(player.cards for player in game.players):
-                    while not queue.empty():
-                        player = queue.get_nowait()
-
-                        print(f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:")
-                        print(player.cards)
-
-                        # Get the player's card
-                        print(f"Player {player.name_port()} qual carta você joga?")
-                        card_num = int(input())
-
-                        # Get card from player's hand
-                        card = player.cards.pop(card_num - 1)
-
-                        print(f"Player {player.name_port()} jogou a carta {card}")
-
-                        card_with_suit = card.rank + card.suit
-                        game.round.play_card(card_with_suit, card.value, player.port)
-
-                    winner = game.round.calculate_winner_round()
-                    print(f"Vencedor da rodada Jogador {winner}")
-                    game.put_players_queue(queue)
-                    game.calculate_player_lifes()
-
-                else:
-                    print("Acabou a rodada", game.state)
-                    game.calculate_next_dealer()
-                    game.calculate_player_lifes()
-                    game.round.clean_round()
-                    game.state = "DEALING"
+        """
+        for player in self.players:
+            for bet in self.round.bets:
+                if bet["player"] == player.port:
+                    if bet["bet"] != 0:
+                        player.lifes -= abs(bet["bet"])
                     break
-            
-            # Check if all cards have been played
-            if all(len(player.cards) == 0 for player in game.players):
-                game.round.clean_round()
-                alive_count = sum(1 for player in game.players if player.is_alive)
 
-                if alive_count == 1:
-                    for player in game.players:
-                        if player.is_alive:
-                            print(f"O jogador {player.port} ganhou!")
-                            game.state = "GAME_OVER"
-                            return
+        for player in self.players:
+            if player.lifes <= 0:
+                player.is_alive = False
 
-                if game.round.round_number <= game.turns:
-                    print("Todas as cartas foram jogadas. Iniciando nova rodada.")
-                    game.state = "DEALING"
-                else:
-                    game.state = "GAME_OVER"
+    def check_game_over(self):
+        """
+        Função para verificar se o jogo acabou
+        """
+        alive_count = sum(1 for player in self.players if player.is_alive)
 
-        elif game.state == "GAME_OVER":
-            print("Game Over")
-            print(f"Vidas dos jogadores: {game.players}")
-            break
+        # Verificar se restou apenas um jogador vivo
+        if alive_count == 1:
+            for player in self.players:
+                if player.is_alive:
+                    self.state = "GAME_OVER"
+                    return
 
-if __name__ == "__main__":
-    # Change to logging.DEBUG to see debug statements...
-    logging.basicConfig(level=logging.INFO)
-    main(sys.argv[1:])
+        # Verificar se nenhum jogador está vivo
+        elif alive_count == 0:
+            self.state = "GAME_OVER"
+
+        # Verificar se o número de rodadas atingiu o limite de turnos
+        elif self.round.round_number > self.turns:
+            self.state = "GAME_OVER"
+
+        # Verificar se todos os jogadores estão sem cartas
+        elif all(len(player.cards) == 0 for player in self.players):
+            self.state = "DEALING"
+
+        # Continuar jogando se nenhuma das condições acima for satisfeita
+        else:
+            self.state = "PLAYING"
+
+    def __repr__(self):
+        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"
+
+    def __str__(self):
+        return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"
+
+    def __len__(self):
+        return self.num_players
+
+    def __getitem__(self, key):
+        return self.players[key]
+
+    def __iter__(self):
+        self.index = 0  # Reinicialize o índice ao começar a iteração
+        return self
+
+    def __next__(self):
+        if self.index < len(self.players):
+            player = self.players[self.index]
+            self.index += 1
+            return player
+        else:
+            raise StopIteration
+
+    def __contains__(self, item):
+        return item in self.players
+
+    def __reversed__(self):
+        return reversed(self.players)
+
+    def __add__(self, other):
+        return self.num_players + other.num_players
