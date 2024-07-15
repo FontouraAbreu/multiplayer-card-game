@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import sys
+from player import Player
+
 
 def serve_game(host, port):
     """
@@ -12,8 +14,8 @@ def serve_game(host, port):
     coro = asyncio.start_server(new_player, host, port, loop=loop)
     server = loop.run_until_complete(coro)
 
-    logging.debug('Serving on %s', server.sockets[0].getsockname())
-    print('Serving on %s', server.sockets[0].getsockname())
+    logging.debug("Serving on %s", server.sockets[0].getsockname())
+    print("Serving on %s", server.sockets[0].getsockname())
     try:
         loop.run_forever()
     except KeyboardInterrupt:
