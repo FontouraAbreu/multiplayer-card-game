@@ -37,6 +37,9 @@ class Player:
         """
         Função para imprimir as vidas do jogador
         """
+        life_message = ""
         print(f"\nJogador {self.port}")
         for _ in range(0, self.lifes):
-            print("❤️", end="  ")
+            # print("❤️", end="  ")
+            life_message += "❤️  "
+        return life_message
