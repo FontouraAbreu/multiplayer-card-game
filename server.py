@@ -1,6 +1,8 @@
 import socket
 import threading
 import time
+import sys
+import json
 
 from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 
@@ -28,11 +30,34 @@ class Server:
 
     def manage_game(self):
         self.token = 0
+        message_template = {
+            "has_message": False,
+            "msg": {
+                "src": None,
+                "dst": None,
+                "content": None,
+                "crc": None,
+                "type": None,
+            },
+            "bearer": None,
+        }
         while True:
             with self.lock:
                 current_conn = self.clients[self.token]
-            current_conn.sendall(b"Your turn")
-            current_conn.recv(1024)  # Wait for the player to finish their turn
+            # testing sending the dealing message
+            message = message_template
+            message["msg"]["type"] = "DEALING"
+            message["msg"]["crc"] = 0
+            message["has_message"] = True
+            message["bearer"] = self.token
+            message = json.dumps(message, indent=2).encode("utf-8")
+            print("Sending message:", message)
+            current_conn.sendall(message)
+            current_conn.recv(
+                sys.getsizeof(message)
+            )  # Wait for the player to finish their turn
+            # here we should check the answer for a ack or nack
+
             with self.lock:
                 self.token = (self.token + 1) % PLAYERS
 
