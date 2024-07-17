@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import socket
+import json
 
 from connection import serve_game
 from game import Game
@@ -39,18 +40,47 @@ def main(args):
     # Make a while loop to keep the game running
     print("Starting game...")
     client = Client(SERVER_ADDRESS, SERVER_PORT)
+    message = {
+        "has_message": False,  # has_message is a boolean that indicates if the token has a message
+        "msg": {
+            "src": None,
+            "dst": None,
+            "content": None,
+            "crc": None,
+            "type": None,
+        },  # msg is the message that is being sent
+        "bearer": None,  # bearer is the index o the node that has the token
+    }
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((client.host, client.port))
-        while game.state != "GAME_OVER":
-            print(f"Current State: {game.state}")
+        while message["msg"]["type"] != "GAME_OVER":
+            message = client_socket.recv(sys.getsizeof(message))
+            print("Message received:", message)
+            message = json.loads(message.decode("utf-8"))
+            msg_type = message["msg"]["type"]
 
-            if game.state == "DEALING":
+            # check if the current player is the dst of the message
+            # if not message["msg"]["dst"] == game.players[game.current_player].port:
+            #     continue
 
-                for player in game.players:
-                    player.print_lifes()
+            if msg_type == "DEALING":
+                """
+                In this state, the game will show the player's lifes and distribute its cards
+                This state will only be executed if the client receives a token with the "DEALING" type
+                """
+                # individual lifes
+                current_player = game.players[game.current_player]
+                current_shackle = game.round.shackle
+                current_player.cards = game.round.deck.distribute_cards(
+                    [current_player], game.cards_per_player
+                )
 
-                game.round.new_shackle()
-                game.round.deck.distribute_cards(game.players, game.cards_per_player)
+                print(f"Vidas do jogador {current_player.port}: {current_player.lifes}")
+                print(f"Manilha atual: {current_shackle}")
+                print(
+                    f"Cartas do jogador {current_player.port}: {current_player.cards}"
+                )
+                input("Press Enter to continue...")
 
                 network_message = "\n\n====================================="
                 network_message += f"\nRodada: {game.round.round_number}"
