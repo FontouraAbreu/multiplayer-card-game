@@ -5,6 +5,11 @@ from config import SERVER_ADDRESS, SERVER_PORT
 
 
 class Client:
+    """
+    This is just an example of a client
+    we are actually going to implement the client logic in the main.py file
+    """
+
     def __init__(self, host, port):
         self.host = host
         self.port = port
