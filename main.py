@@ -13,30 +13,11 @@ from client import Client
 
 from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 
-queue = asyncio.Queue()
-
 
 def main(args):
     """
     Launch a client/server
     """
-    if len(args) < 3:
-        print("args", args)
-        print("Usage: python game.py <number_of_players> <cards_per_player> <turns>")
-        return
-
-    num_players = int(args[0])
-    cards_per_player = int(args[1])
-    turns = int(args[2])
-
-    game = Game(num_players, cards_per_player, turns)
-
-    print(game)
-
-    # Add players to the queue
-    game.put_players_queue(queue)
-    game.state = "DEALING"
-
     # Make a while loop to keep the game running
     print("Starting game...")
     client = Client(SERVER_ADDRESS, SERVER_PORT)
@@ -51,8 +32,10 @@ def main(args):
         },  # msg is the message that is being sent
         "bearer": None,  # bearer is the index o the node that has the token
     }
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         client_socket.connect((client.host, client.port))
+
         while message["msg"]["type"] != "GAME_OVER":
             message = client_socket.recv(sys.getsizeof(message))
             print("Message received:", message)
@@ -69,18 +52,21 @@ def main(args):
                 This state will only be executed if the client receives a token with the "DEALING" type
                 """
                 # individual lifes
-                current_player = game.players[game.current_player]
-                current_shackle = game.round.shackle
-                current_player.cards = game.round.deck.distribute_cards(
-                    [current_player], game.cards_per_player
-                )
 
-                print(f"Vidas do jogador {current_player.port}: {current_player.lifes}")
-                print(f"Manilha atual: {current_shackle}")
-                print(
-                    f"Cartas do jogador {current_player.port}: {current_player.cards}"
-                )
-                input("Press Enter to continue...")
+                # ----- MOVIDO PARA O SERVIDOR -----
+                # current_player = game.players[game.current_player]
+                # current_shackle = game.round.shackle
+                # current_player.cards = game.round.deck.distribute_cards(
+                #     [current_player], game.cards_per_player
+                # )
+
+                # print(f"Vidas do jogador {current_player.port}: {current_player.lifes}")
+                # print(f"Manilha atual: {current_shackle}")
+                # print(
+                #     f"Cartas do jogador {current_player.port}: {current_player.cards}"
+                # )
+                # input("Press Enter to continue...")
+                # ----- MOVIDO PARA O SERVIDOR -----
 
                 network_message = "\n\n====================================="
                 network_message += f"\nRodada: {game.round.round_number}"
