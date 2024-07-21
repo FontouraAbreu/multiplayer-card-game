@@ -10,6 +10,7 @@ from player import Player
 from round import Round
 from deck import Deck
 from client import Client
+from utils import calculate_crc8
 
 from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 
@@ -37,8 +38,22 @@ def main(args):
         client_socket.connect((client.host, client.port))
 
         while message["msg"]["type"] != "GAME_OVER":
-            message = client_socket.recv(sys.getsizeof(message))
+            message = client_socket.recv(412)
             print("Message received:", message)
+
+            # THIS NEED TO BE IMPLEMENTED
+            # # check if the message crc8 is valid
+            # if calculate_crc8(message) != message["crc8"]:
+            #     print("CRC8 inválido")
+            #     # answer the message with a NACK
+            #     message["has_message"] = False
+            #     message["bearer"] = None
+            #     message["msg"]["type"] = "NACK"
+            #     message["crc8"] = calculate_crc8(message)
+            #     client_socket.sendall(json.dumps(message).encode("utf-8"))
+            #     continue
+            # THIS NEED TO BE IMPLEMENTED
+
             message = json.loads(message.decode("utf-8"))
             msg_type = message["msg"]["type"]
 
@@ -51,34 +66,19 @@ def main(args):
                 In this state, the game will show the player's lifes and distribute its cards
                 This state will only be executed if the client receives a token with the "DEALING" type
                 """
-                # individual lifes
 
-                # ----- MOVIDO PARA O SERVIDOR -----
-                # current_player = game.players[game.current_player]
-                # current_shackle = game.round.shackle
-                # current_player.cards = game.round.deck.distribute_cards(
-                #     [current_player], game.cards_per_player
-                # )
+                message_content = message["msg"]["content"]
+                # extract cards and suits from the message
 
-                # print(f"Vidas do jogador {current_player.port}: {current_player.lifes}")
-                # print(f"Manilha atual: {current_shackle}")
-                # print(
-                #     f"Cartas do jogador {current_player.port}: {current_player.cards}"
-                # )
-                # input("Press Enter to continue...")
-                # ----- MOVIDO PARA O SERVIDOR -----
-
-                network_message = "\n\n====================================="
-                network_message += f"\nRodada: {game.round.round_number}"
-                network_message += f"\nA manilha é: {game.round.shackle}"
-                network_message += "\n=====================================\n\n    "
-                client_socket.sendall(network_message.encode())
-
-                # print("\n\n=====================================")
-                # print("Rodada:", game.round.round_number)
-                # print("A manilha é:", game.round.shackle)
-                # print("=====================================\n\n    ")
-                game.state = "BETTING"
+                for card in message_content:
+                    # converting the card suit to the unicode representation
+                    card["suit"] = (
+                        card["suit"]
+                        .replace("\\\\", "\\")
+                        .encode()
+                        .decode("unicode-escape")
+                    )
+                    print(f"Carta: {card['rank']} naipe: {card['suit']}")
 
             elif game.state == "BETTING":
                 if queue.empty():

@@ -5,12 +5,15 @@ import time
 import sys
 import json
 
-from utils import parse_args
+
+from pprint import pprint
+
+from utils import parse_args, calculate_crc8
 from game import Game
 
 from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 
-queue = asyncio.Queue()
+players_queue = asyncio.Queue()
 
 
 class Server:
@@ -21,8 +24,8 @@ class Server:
         self.turns = turns
         self.clients = []
         self.lock = threading.Lock()
-        self.current_player = 0
         self.token = None
+        self.current_player = 0
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
@@ -34,7 +37,10 @@ class Server:
                 with self.lock:
                     self.clients.append(conn)
                 print(f"Player connected from {addr}")
-            threading.Thread(target=self.manage_game).start()
+            try:
+                threading.Thread(target=self.manage_game).start()
+            except Exception as e:
+                print(f"Error starting the game: {e}")
 
     def manage_game(self):
         self.token = 0
@@ -54,69 +60,75 @@ class Server:
         # Start the game
         game = Game(PLAYERS, self.cards_per_player, self.turns)
         game.state = "DEALING"
-        game.put_players_queue(queue)
+        game.put_players_queue(players_queue)
         # set the starting state
 
-        while not queue.empty() and game.state != "GAME_OVER":
-            with self.lock:
+        while not players_queue.empty() and game.state != "GAME_OVER":
+            with self.lock:  # lock the token
                 current_conn = self.clients[self.token]
 
                 match game.state:
                     case "DEALING":
                         # individual lifes
-                        current_player = game.players[self.current_player]
+                        current_player = game.players[self.token]
                         print("Current player:", current_player.port)
 
-                        current_shackle = game.round.shackle
-                        current_player.cards = game.round.deck.distribute_cards(
-                            [current_player], game.cards_per_player
+                        serializible_cards = []
+                        for card in current_player.cards:
+                            suit = json.dumps(
+                                card.get_suit()
+                            )  # Serializa a string para JSON
+                            rank = json.dumps(
+                                card.get_rank()
+                            )  # Serializa a string para JSON
+                            serializible_cards.append(
+                                {
+                                    "suit": suit.strip('"'),
+                                    "rank": rank.strip('"'),
+                                }  # Remove as aspas extras
+                            )
+
+                        print("info that will be sent:", serializible_cards)
+                        print(
+                            "size of the clean message:",
                         )
 
+                        sys.getsizeof(message_template),
                         # send to the player the cards he has
                         message = message_template
                         message["msg"]["type"] = "DEALING"
-                        message["msg"]["content"] = current_player.cards
-                        print("Cards sent to player:", current_player.cards)
+                        message["msg"]["content"] = serializible_cards
                         message["has_message"] = True
                         message["bearer"] = self.token
-                        message["crc8"] = self.calculate_crc8(
+                        message["crc8"] = calculate_crc8(
                             json.dumps(message, indent=2).encode("utf-8")
                         )
+
                         message = json.dumps(message, indent=2).encode("utf-8")
 
-                        answer = None
-                        while answer != "ACK":
-                            print("Sending message:", message)
-                            current_conn.sendall(message)
-                            answer = current_conn.recv(sys.getsizeof(message))
-                            print("Answer received:", answer)
+                        print("size of the filled message:", sys.getsizeof(message))
+                        print("Sending message:", message)
+                        current_conn.sendall(message)
 
+                        # THIS NEEDS TO BE INTEGRATED WITH THE CLIENT
+                        # answer = None
+                        # while answer != "ACK":
+                        #     answer = current_conn.recv(sys.getsizeof(message))
+                        #     print("Answer received:", answer)
+                        # THIS NEEDS TO BE INTEGRATED WITH THE CLIENT
                         # send the player the lifes he has
                         message = message_template
+                        # hop to the next player
 
-            # testing sending the dealing message
-            message = message_template
-            message["msg"]["type"] = "DEALING"
-            message["msg"]["crc"] = 0
-            message["has_message"] = True
-            message["bearer"] = self.token
-            message = json.dumps(message, indent=2).encode("utf-8")
+                        print("Dealing state finished")
+                        input("Press enter to continue")
+                        # game.state = "BETTING                    # hop to the next player
 
-            print("Sending message:", message)
-            current_conn.sendall(message)
-            current_conn.recv(
-                sys.getsizeof(message)
-            )  # Wait for the player to finish their turn
-            # here we should check the answer for a ack or nack
+                    case "BETTING":
+                        print("starting betting state")
 
             with self.lock:
                 self.token = (self.token + 1) % PLAYERS
-
-    def calculate_crc8(self, message):
-        crc = 0
-        for byte in message:
-            crc += byte
-        return crc % 256
 
     def broadcast(self, message):
         for client in self.clients:
