@@ -16,3 +16,10 @@ def parse_args():
         help="The number of turns to play",
     )
     return parser.parse_args()
+
+
+def calculate_crc8(message):
+    crc = 0
+    for byte in message:
+        crc += byte
+    return crc % 256
