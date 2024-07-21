@@ -13,6 +13,16 @@ class Player:
         self.port = port
         self.lifes = lifes
         self.cards = cards
+        """
+        cards: cartas do jogador no formato:
+
+        [
+            {"card": "4♦️", "value": 41},
+            {"card": "5♦️", "value": 51},
+            
+            ...
+        ]
+        """
         self.is_alive = is_alive
         self.is_dealer = is_dealer
         self.color = color
