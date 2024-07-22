@@ -88,9 +88,7 @@ def main(args):
                     continue
 
                 player = queue.get_nowait()
-                print(
-                    f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:"
-                )
+                print(f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:")
                 print(player.cards)
 
                 # Get the player's bet

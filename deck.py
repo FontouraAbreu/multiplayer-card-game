@@ -68,6 +68,8 @@ class Deck:
         self.__init__(self.shackle_rank)
 
     def deal(self, num_players, cards_per_player):
+        self.new_shackle
+        self.shuffle()
         if num_players * cards_per_player > len(self.cards):
             raise ValueError("Not enough cards to deal")
         return [

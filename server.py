@@ -70,17 +70,14 @@ class Server:
                 match game.state:
                     case "DEALING":
                         # individual lifes
+                        print("Starting dealing state")
                         current_player = game.players[self.token]
                         print("Current player:", current_player.port)
 
                         serializible_cards = []
                         for card in current_player.cards:
-                            suit = json.dumps(
-                                card.get_suit()
-                            )  # Serializa a string para JSON
-                            rank = json.dumps(
-                                card.get_rank()
-                            )  # Serializa a string para JSON
+                            suit = json.dumps(card.get_suit())  # Serializa a string para JSON
+                            rank = json.dumps(card.get_rank())  # Serializa a string para JSON
                             serializible_cards.append(
                                 {
                                     "suit": suit.strip('"'),
@@ -89,9 +86,7 @@ class Server:
                             )
 
                         print("info that will be sent:", serializible_cards)
-                        print(
-                            "size of the clean message:",
-                        )
+                        print("size of the clean message:" )
 
                         sys.getsizeof(message_template),
                         # send to the player the cards he has
@@ -100,9 +95,7 @@ class Server:
                         message["msg"]["content"] = serializible_cards
                         message["has_message"] = True
                         message["bearer"] = self.token
-                        message["crc8"] = calculate_crc8(
-                            json.dumps(message, indent=2).encode("utf-8")
-                        )
+                        message["crc8"] = calculate_crc8(json.dumps(message, indent=2).encode("utf-8"))
 
                         message = json.dumps(message, indent=2).encode("utf-8")
 
@@ -120,12 +113,19 @@ class Server:
                         message = message_template
                         # hop to the next player
 
-                        print("Dealing state finished")
-                        input("Press enter to continue")
-                        # game.state = "BETTING                    # hop to the next player
+                        current_player.has_cards = True
+
+                        # all()
+                        # verifica se todos os jogadores tem cartas, se tiver muda de estado
+                        if all(player.has_cards for player in game.players):
+                            game.state = "BETTING"
+                            for player in game.players:
+                                players_queue.put_nowait(player)
+    
 
                     case "BETTING":
                         print("starting betting state")
+                        break
 
             with self.lock:
                 self.token = (self.token + 1) % PLAYERS
