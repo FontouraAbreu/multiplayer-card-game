@@ -28,7 +28,7 @@ class Game:
         self.turns = turns
         self.round = Round(1, num_players, cards_per_player)
         self.players = [
-            Player(port, turns, cards, True, False, color)
+            Player(port, turns, cards, True, False, False, color)
             for port, cards, color in zip(
                 range(1, num_players + 1),
                 self.round.deal_cards(),
@@ -124,6 +124,23 @@ class Game:
         # Continuar jogando se nenhuma das condições acima for satisfeita
         else:
             self.state = "PLAYING"
+
+    def next_player(self):
+        """
+        Função para calcular o próximo jogador
+        """
+        self.current_player = (self.current_player + 1) % self.num_players
+
+    def next_state(self):
+        """
+        Função para calcular o próximo estado do jogo
+        """
+        if self.state == "DEALING":
+            self.state = "BETTING"
+        # elif self.state == "BETTING":
+        #     self.state = "PLAYING"
+        # elif self.state == "PLAYING":
+        #     self.state = "DEALING"
 
     def __repr__(self):
         return f"Game with {self.num_players} players, {self.cards_per_player} cards per player and {self.turns} turns"

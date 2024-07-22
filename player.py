@@ -6,10 +6,11 @@ class Player:
     cards: cartas do jogador
     is_alive: jogador está vivo?
     is_dealer: jogador é o dealer?
+    has_cards: jogador tem cartas?
     color: cor do jogador
     """
 
-    def __init__(self, port, lifes, cards, is_alive, is_dealer, color):
+    def __init__(self, port, lifes, cards, is_alive, is_dealer, has_cards, color):
         self.port = port
         self.lifes = lifes
         self.cards = cards
@@ -25,6 +26,7 @@ class Player:
         """
         self.is_alive = is_alive
         self.is_dealer = is_dealer
+        self.has_cards = has_cards
         self.color = color
         self.message_queue = []  # Fila de mensagens do jogador
         self.has_token = False  # O jogador tem o token?
