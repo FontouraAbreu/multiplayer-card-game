@@ -8,7 +8,7 @@ import json
 
 from pprint import pprint
 
-from utils import parse_args, calculate_crc8
+from utils import parse_args, calculate_crc8, send_message
 from game import Game
 
 from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
@@ -76,8 +76,12 @@ class Server:
 
                         serializible_cards = []
                         for card in current_player.cards:
-                            suit = json.dumps(card.get_suit())  # Serializa a string para JSON
-                            rank = json.dumps(card.get_rank())  # Serializa a string para JSON
+                            suit = json.dumps(
+                                card.get_suit()
+                            )  # Serializa a string para JSON
+                            rank = json.dumps(
+                                card.get_rank()
+                            )  # Serializa a string para JSON
                             serializible_cards.append(
                                 {
                                     "suit": suit.strip('"'),
@@ -86,7 +90,7 @@ class Server:
                             )
 
                         print("info that will be sent:", serializible_cards)
-                        print("size of the clean message:" )
+                        print("size of the clean message:")
 
                         sys.getsizeof(message_template),
                         # send to the player the cards he has
@@ -95,20 +99,12 @@ class Server:
                         message["msg"]["content"] = serializible_cards
                         message["has_message"] = True
                         message["bearer"] = self.token
-                        message["crc8"] = calculate_crc8(json.dumps(message, indent=2).encode("utf-8"))
+                        message["crc8"] = 1
 
+                        # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
+                        send_message(current_conn, message)
 
-                        print("size of the filled message:", sys.getsizeof(message))
-                        print("Sending message:", message)
-                        current_conn.sendall(message)
-
-                        # THIS NEEDS TO BE INTEGRATED WITH THE CLIENT
-                        # answer = None
-                        # while answer != "ACK":
-                        #     answer = current_conn.recv(sys.getsizeof(message))
-                        #     print("Answer received:", answer)
-                        # THIS NEEDS TO BE INTEGRATED WITH THE CLIENT
                         # send the player the lifes he has
                         message = message_template
                         # hop to the next player
@@ -118,13 +114,78 @@ class Server:
                         # all()
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
+                            input("Press enter to continue")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
-    
 
                     case "BETTING":
                         print("starting betting state")
+
+                        current_player = game.players[self.token]
+                        current_player_lifes = current_player.lifes
+                        print(
+                            f"Player",
+                            current_player.port,
+                            "has",
+                            current_player_lifes,
+                            "lifes",
+                        )
+
+                        player = players_queue.get_nowait()
+
+                        message = message_template
+                        message["msg"]["type"] = "BETTING"
+                        message["msg"]["content"] = player.lifes
+                        message["has_message"] = True
+                        message["bearer"] = self.token
+                        message["crc8"] = 1
+
+                        message = json.dumps(message, indent=2).encode("utf-8")
+                        send_message(current_conn, message)
+
+                        # receive the player's bet
+                        player_bet = current_conn.recv(412)
+                        player_bet = json.loads(player_bet.decode("utf-8"))
+                        # check if the message crc8 is valid
+                        answer_crc8 = message_template
+                        if player_bet["crc8"] != 1:
+                            print("CRC8 inválido, enviando NACK")
+                            # answer the message with a NACK
+                            answer_crc8["has_message"] = False
+                            answer_crc8["bearer"] = None
+                            answer_crc8["msg"]["type"] = "NACK"
+                            answer_crc8["crc8"] = 1
+                            current_conn.sendall(
+                                json.dumps(answer_crc8).encode("utf-8")
+                            )
+                            continue
+                        else:
+                            print("CRC8 válido, enviando ACK")
+                            # answer the message with a ACK
+                            answer_crc8["has_message"] = False
+                            answer_crc8["bearer"] = None
+                            answer_crc8["msg"]["type"] = "ACK"
+                            answer_crc8["crc8"] = 1
+                            current_conn.sendall(
+                                json.dumps(answer_crc8).encode("utf-8")
+                            )
+
+                        print(
+                            "Player",
+                            current_player.port,
+                            "bet: ",
+                            player_bet["msg"]["content"],
+                        )
+
+                        ## CONFERIR A PARTIR DAQUI A LOGICA DO JOGO
+                        game.round.play_bet(player_bet, player.port)
+
+                        if players_queue.empty():
+                            game.state = "PLAYING"
+                            for player in game.players:
+                                players_queue.put_nowait(player)
+                            continue
                         break
 
             with self.lock:
