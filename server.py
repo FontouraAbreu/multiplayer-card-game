@@ -73,30 +73,34 @@ class Server:
                         print("Starting dealing state")
                         current_player = game.players[self.token]
                         print("Current player:", current_player.port)
+                        shackle = game.round.deck.shackle_rank
+                        round_num = game.round.round_number
 
-                        serializible_cards = []
+                        # message to be sent to the player
+                        serializable_message = {
+                            "cards": [],
+                            "lifes": current_player.lifes,
+                            "shackle": shackle,
+                            "round_num": round_num,
+                        }
+
                         for card in current_player.cards:
-                            suit = json.dumps(
-                                card.get_suit()
-                            )  # Serializa a string para JSON
-                            rank = json.dumps(
-                                card.get_rank()
-                            )  # Serializa a string para JSON
-                            serializible_cards.append(
+                            suit = json.dumps(card.get_suit())
+                            rank = json.dumps(card.get_rank())
+                            serializable_message["cards"].append(
                                 {
                                     "suit": suit.strip('"'),
                                     "rank": rank.strip('"'),
-                                }  # Remove as aspas extras
-                            )
+                                })
 
-                        print("info that will be sent:", serializible_cards)
+                        print("info that will be sent:", serializable_message)
                         print("size of the clean message:")
 
                         sys.getsizeof(message_template),
                         # send to the player the cards he has
                         message = message_template
                         message["msg"]["type"] = "DEALING"
-                        message["msg"]["content"] = serializible_cards
+                        message["msg"]["content"] = serializable_message
                         message["has_message"] = True
                         message["bearer"] = self.token
                         message["crc8"] = 1
@@ -141,6 +145,12 @@ class Server:
                         message["bearer"] = self.token
                         message["crc8"] = 1
 
+                        # converts the message to bytes
+                        message = json.dumps(message, indent=2).encode("utf-8")
+                        send_message(current_conn, message)
+
+                        current_player = game.players[self.token]
+
                         message = json.dumps(message, indent=2).encode("utf-8")
                         send_message(current_conn, message)
 
@@ -180,6 +190,8 @@ class Server:
 
                         ## CONFERIR A PARTIR DAQUI A LOGICA DO JOGO
                         game.round.play_bet(player_bet, player.port)
+
+                        print("Player", current_player.port, "bet: ", player_bet)
 
                         if players_queue.empty():
                             game.state = "PLAYING"

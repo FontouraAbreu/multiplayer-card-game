@@ -51,7 +51,7 @@ def main(args):
         client_socket.connect((client.host, client.port))
 
         while message["msg"]["type"] != "GAME_OVER":
-            message = client_socket.recv(412)
+            message = client_socket.recv(522)
             print("Message received:", message)
 
             message = json.loads(message.decode("utf-8"))
@@ -91,7 +91,17 @@ def main(args):
                     message_content = message["msg"]["content"]
                     # extract cards and suits from the message
 
-                    for card in message_content:
+                    print(f"=----= Rodada {message_content['round_num']} =----=")
+                    print(f"A manilha {message_content['shackle']}")
+
+                    #print the player's lifes with hearts
+                    print("Suas vidas são:")
+                    for _ in range(message_content['lifes']):
+                        print("❤️", end="  ")
+
+
+                    print("\nSuas cartas são:")
+                    for card in message_content['cards']:
                         # converting the card suit to the unicode representation
                         card["suit"] = (
                             card["suit"]
@@ -99,7 +109,7 @@ def main(args):
                             .encode()
                             .decode("unicode-escape")
                         )
-                        print(f"Carta: {card['rank']} naipe: {card['suit']}")
+                        print(f"Carta: {card['rank']} {card['suit']}")
 
                     # save the player's cards
 
@@ -107,8 +117,6 @@ def main(args):
                     """
                     In this state, the game will show the player's lifes and asks for the player's bet
                     """
-                    message_content = message["msg"]["content"]
-                    print(f"Você tem {message_content} vidas")
 
                     print("Quantas rodadas você faz?")
                     bet = int(input())
