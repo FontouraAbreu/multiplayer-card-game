@@ -51,30 +51,6 @@ def main(args):
         client_socket.connect((client.host, client.port))
 
         while message["msg"]["type"] != "GAME_OVER":
-            message = client_socket.recv(522)
-            print("Message received:", message)
-
-            message = json.loads(message.decode("utf-8"))
-
-            # check if the message crc8 is valid
-            answer_crc8 = message_template
-            if message["crc8"] != 1:
-                print("CRC8 inválido, enviando NACK")
-                # answer the message with a NACK
-                answer_crc8["has_message"] = False
-                answer_crc8["bearer"] = None
-                answer_crc8["msg"]["type"] = "NACK"
-                answer_crc8["crc8"] = 1
-                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
-                continue
-            else:
-                print("CRC8 válido, enviando ACK")
-                # answer the message with a ACK
-                answer_crc8["has_message"] = False
-                answer_crc8["bearer"] = None
-                answer_crc8["msg"]["type"] = "ACK"
-                answer_crc8["crc8"] = 1
-                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
 
             msg_type = message["msg"]["type"]
 
@@ -94,14 +70,13 @@ def main(args):
                     print(f"=----= Rodada {message_content['round_num']} =----=")
                     print(f"A manilha {message_content['shackle']}")
 
-                    #print the player's lifes with hearts
+                    # print the player's lifes with hearts
                     print("Suas vidas são:")
-                    for _ in range(message_content['lifes']):
+                    for _ in range(message_content["lifes"]):
                         print("❤️", end="  ")
 
-
                     print("\nSuas cartas são:")
-                    for card in message_content['cards']:
+                    for card in message_content["cards"]:
                         # converting the card suit to the unicode representation
                         card["suit"] = (
                             card["suit"]
@@ -145,6 +120,32 @@ def main(args):
                     # converts the message to bytes
                     message = json.dumps(message, indent=2).encode("utf-8")
                     send_message(client_socket, message)
+
+            print("Waiting for message...")
+            message = client_socket.recv(522)
+            print("Message received:", message)
+
+            message = json.loads(message.decode("utf-8"))
+
+            # check if the message crc8 is valid
+            answer_crc8 = message_template
+            if message["crc8"] != 1:
+                print("CRC8 inválido, enviando NACK")
+                # answer the message with a NACK
+                answer_crc8["has_message"] = False
+                answer_crc8["bearer"] = None
+                answer_crc8["msg"]["type"] = "NACK"
+                answer_crc8["crc8"] = 1
+                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
+                continue
+            else:
+                print("CRC8 válido, enviando ACK")
+                # answer the message with a ACK
+                answer_crc8["has_message"] = False
+                answer_crc8["bearer"] = None
+                answer_crc8["msg"]["type"] = "ACK"
+                answer_crc8["crc8"] = 1
+                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
 
             # if game.state == "BETTING":
             #     if queue.empty():

@@ -91,7 +91,8 @@ class Server:
                                 {
                                     "suit": suit.strip('"'),
                                     "rank": rank.strip('"'),
-                                })
+                                }
+                            )
 
                         print("info that will be sent:", serializable_message)
                         print("size of the clean message:")
@@ -118,7 +119,7 @@ class Server:
                         # all()
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
-                            input("Press enter to continue")
+                            input("Press enter to continue to the BETTING state")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -150,9 +151,6 @@ class Server:
                         send_message(current_conn, message)
 
                         current_player = game.players[self.token]
-
-                        message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(current_conn, message)
 
                         # receive the player's bet
                         player_bet = current_conn.recv(412)
@@ -191,9 +189,8 @@ class Server:
                         ## CONFERIR A PARTIR DAQUI A LOGICA DO JOGO
                         game.round.play_bet(player_bet, player.port)
 
-                        print("Player", current_player.port, "bet: ", player_bet)
-
                         if players_queue.empty():
+                            input("Press enter to continue to the PLAYING state")
                             game.state = "PLAYING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
