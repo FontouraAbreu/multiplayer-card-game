@@ -70,7 +70,8 @@ class Server:
                 match game.state:
                     case "DEALING":
                         # individual lifes
-                        print("Starting dealing state")
+
+                        print("==================DEALING==================")
                         current_player = game.players[self.token]
                         print("Current player:", current_player.port)
                         shackle = game.round.deck.shackle_rank
@@ -116,16 +117,16 @@ class Server:
 
                         current_player.has_cards = True
 
-                        # all()
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
                             input("Press enter to continue to the BETTING state")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
+                        print("==================DEALING==================")
 
                     case "BETTING":
-                        print("starting betting state")
+                        print("==================BETTING==================")
 
                         current_player = game.players[self.token]
                         current_player_lifes = current_player.lifes
@@ -141,7 +142,9 @@ class Server:
 
                         message = message_template
                         message["msg"]["type"] = "BETTING"
-                        message["msg"]["content"] = player.lifes
+                        message["msg"][
+                            "content"
+                        ] = player.lifes  # THIS CAN BE CHANGED AS NEEDED
                         message["has_message"] = True
                         message["bearer"] = self.token
                         message["crc8"] = 1
@@ -195,8 +198,10 @@ class Server:
                             for player in game.players:
                                 players_queue.put_nowait(player)
                             continue
-                        break
 
+                        print("==================BETTING==================")
+
+            # this passes the token to the next player
             with self.lock:
                 self.token = (self.token + 1) % PLAYERS
 
