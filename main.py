@@ -17,12 +17,13 @@ from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 current_round_status = {
-    "round_number": 0,
+    "round_number": 1,
     "shackle": None,
     "num_players": PLAYERS,
     "cards_per_player": None,
-    "current_player_cards": None,
+    "current_player_cards": [],
     "current_player_lifes": None,
+    "current_player_bet": None,
 }
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 
@@ -68,12 +69,21 @@ def main(args):
                     # extract cards and suits from the message
 
                     print(f"=----= Rodada {message_content['round_num']} =----=")
+                    # save the round number in the local round status
+                    current_round_status["round_number"] = message_content["round_num"]
                     print(f"A manilha {message_content['shackle']}")
+                    # save the shackle in the local round status
+                    current_round_status["shackle"] = message_content["shackle"]
 
                     # print the player's lifes with hearts
                     print("Suas vidas são:")
                     for _ in range(message_content["lifes"]):
                         print("❤️", end="  ")
+
+                    # save the player's lifes in the local round status
+                    current_round_status["current_player_lifes"] = message_content[
+                        "lifes"
+                    ]
 
                     print("\nSuas cartas são:")
                     for card in message_content["cards"]:
@@ -85,6 +95,10 @@ def main(args):
                             .decode("unicode-escape")
                         )
                         print(f"Carta: {card['rank']} {card['suit']}")
+                        # save the player's cards in the local round status
+                        current_round_status["current_player_cards"].append(
+                            f"{card['rank']} {card['suit']}"  # DEVERIAMOS ESTAR CRIANDO UM OBJETO CARD AQUI
+                        )
 
                     # save the player's cards
 
@@ -93,6 +107,17 @@ def main(args):
                     In this state, the game will show the player's lifes and asks for the player's bet
                     """
 
+                    # print the players lifes with hearts
+                    print("Suas vidas são:")
+                    for _ in range(current_round_status["current_player_lifes"]):
+                        print("❤️", end="  ")
+
+                    # print the player's cards
+                    print("\nSuas cartas são:")
+                    for card in current_round_status["current_player_cards"]:
+                        print(card)
+
+                    # ask the player for the bet
                     print("Quantas rodadas você faz?")
                     bet = int(input())
 
