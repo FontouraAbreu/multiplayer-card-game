@@ -19,7 +19,7 @@ from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
 current_round_status = {
     "round_number": 0,
     "shackle": None,
-    "num_players": None,
+    "num_players": PLAYERS,
     "cards_per_player": None,
     "current_player_cards": None,
     "current_player_lifes": None,
