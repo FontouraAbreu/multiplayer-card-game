@@ -73,6 +73,7 @@ class Server:
 
                         print("==================DEALING==================")
                         current_player = game.players[self.token]
+                        current_player.has_bet = False
                         print("Current player:", current_player.port)
                         shackle = game.round.deck.shackle_rank
                         round_num = game.round.round_number
@@ -181,6 +182,7 @@ class Server:
                             current_conn.sendall(
                                 json.dumps(answer_crc8).encode("utf-8")
                             )
+                            current_player.has_bet = True
 
                         print(
                             "Player",
@@ -192,7 +194,7 @@ class Server:
                         ## CONFERIR A PARTIR DAQUI A LOGICA DO JOGO
                         game.round.play_bet(player_bet, player.port)
 
-                        if players_queue.empty():
+                        if all(player.has_bet for player in game.players):
                             input("Press enter to continue to the PLAYING state")
                             game.state = "PLAYING"
                             for player in game.players:
@@ -200,6 +202,19 @@ class Server:
                             continue
 
                         print("==================BETTING==================")
+                    case "PLAYING":
+                        print("==================PLAYING==================")
+                        current_player = game.players[self.token]
+                        current_player_lifes = current_player.lifes
+                        print(
+                            f"Player",
+                            current_player.port,
+                            "has",
+                            current_player_lifes,
+                            "lifes",
+                        )
+
+                        player = players_queue.get_nowait()
 
             # this passes the token to the next player
             with self.lock:
