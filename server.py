@@ -206,6 +206,7 @@ class Server:
                             continue
 
                         print("==================BETTING==================")
+
                     case "PLAYING":
                         print("==================PLAYING==================")
                         current_player = game.players[self.token]
@@ -216,6 +217,61 @@ class Server:
                             "has",
                             current_player_lifes,
                             "lifes",
+                        )
+
+                        message = message_template
+                        message["msg"]["type"] = "PLAYING"
+                        message["has_message"] = True
+                        message["bearer"] = self.token
+                        message["msg"][
+                            "content"
+                        ] = ""  # TALVEZ ENVIAR AS CARTAS JOGADAS NO ROUND ATUAL
+                        message["crc8"] = 1
+
+                        # converts the message to bytes
+                        message = json.dumps(message, indent=2).encode("utf-8")
+                        send_message(current_conn, message)
+
+                        # receive the player's card
+                        card_played = current_conn.recv(RECV_BUFFER)
+                        card_played = json.loads(card_played.decode("utf-8"))
+                        # check if the message crc8 is valid
+                        answer_crc8 = message_template
+                        if card_played["crc8"] != 1:
+                            print("CRC8 inválido, enviando NACK")
+                            # answer the message with a NACK
+                            answer_crc8["has_message"] = False
+                            answer_crc8["bearer"] = None
+                            answer_crc8["msg"]["type"] = "NACK"
+                            answer_crc8["crc8"] = 1
+                            current_conn.sendall(
+                                json.dumps(answer_crc8).encode("utf-8")
+                            )
+                            continue
+                        else:
+                            print("CRC8 válido, enviando ACK")
+                            # answer the message with a ACK
+                            answer_crc8["has_message"] = False
+                            answer_crc8["bearer"] = None
+                            answer_crc8["msg"]["type"] = "ACK"
+                            answer_crc8["crc8"] = 1
+                            current_conn.sendall(
+                                json.dumps(answer_crc8).encode("utf-8")
+                            )
+
+                        # extract the card from the message
+                        card_played = card_played["msg"]["content"]
+                        # trasnform the card into a dict with suit and rank
+                        card_played = json.loads(card_played)
+                        print("Card played:", card_played)
+
+                        # remove the card from the player's hand
+                        current_player.cards.remove(card_played["msg"]["content"])
+                        print(
+                            "Player",
+                            current_player.port,
+                            "played the card: ",
+                            card_played["msg"]["content"],
                         )
 
                         player = players_queue.get_nowait()

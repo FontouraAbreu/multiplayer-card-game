@@ -163,6 +163,41 @@ def main(args):
                     message = json.dumps(message, indent=2).encode("utf-8")
                     send_message(client_socket, message)
 
+                case "PLAYING":
+                    """
+                    In this state, the game will show the player's lifes and asks for the player's card
+                    """
+                    # print the players lifes with hearts
+                    print("Suas vidas são:")
+                    for _ in range(current_round_status["current_player_lifes"]):
+                        print("❤️", end="  ")
+
+                    # print the player's cards
+                    print("\nSuas cartas são:")
+                    for card in current_round_status["current_player_cards"]:
+                        print(card)
+
+                    # ask the player for the card
+                    print("Qual carta você joga?")
+                    card_num = int(input())
+
+                    # Get card from player's hand
+                    card = current_round_status["current_player_cards"].pop(
+                        card_num - 1
+                    )
+
+                    # Send the player's card
+                    message = message_template
+                    message["msg"]["type"] = "PLAYING"
+                    message["msg"]["content"] = card
+                    message["has_message"] = True
+                    message["bearer"] = None
+                    message["crc8"] = 1
+
+                    # converts the message to bytes
+                    message = json.dumps(message, indent=2).encode("utf-8")
+                    send_message(client_socket, message)
+
             # Receive the message from the server
             message = client_socket.recv(RECV_BUFFER)
             # decode the message
