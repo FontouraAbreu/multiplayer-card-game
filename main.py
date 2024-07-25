@@ -4,7 +4,6 @@ import sys
 import socket
 import json
 
-from connection import serve_game
 from game import Game
 from player import Player
 from round import Round
