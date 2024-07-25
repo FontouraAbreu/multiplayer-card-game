@@ -16,6 +16,9 @@ class Round:
         self.num_players = num_players
         self.cards_per_player = cards_per_player
         self.current_player = 0
+        self.current_winning_card = None
+        self.current_winning_player = None
+        self.current_winning_player_lives = 0
         self.cards = []
         self.bets = []
 
