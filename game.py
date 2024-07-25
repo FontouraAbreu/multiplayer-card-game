@@ -1,6 +1,5 @@
 import random
 from enum import Enum
-from RingNetwork import RingNetwork
 from round import Round
 from player import Player
 
@@ -38,7 +37,6 @@ class Game:
         self.players[0].is_dealer = True
         self.current_player = 0
         self.state = State.WAITING
-        self.ringNetwork = RingNetwork(num_players)
 
     def put_players_queue(self, queue):
         """
