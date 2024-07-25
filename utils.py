@@ -27,7 +27,7 @@ def send_message(conn, message: bytes):
     Sends a message to the client and waits for an ACK response
     while the message is not an ACK message it will keep sending the message
     """
-    print("size of the filled message:", sys.getsizeof(message))
+    # print("size of the filled message:", sys.getsizeof(message))
     print("Sending message:", message)
 
     conn.sendall(message)
