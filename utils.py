@@ -2,6 +2,8 @@ import argparse
 import json
 import sys
 
+from config import RECV_BUFFER
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Start a server")
@@ -31,7 +33,7 @@ def send_message(conn, message: bytes):
     conn.sendall(message)
     # waits for ACK response
     print("waiting for ACK")
-    answer = conn.recv(412)
+    answer = conn.recv(RECV_BUFFER)
     answer = json.loads(answer.decode("utf-8"))
     msg_type = answer["msg"]["type"]
     # keep sending the message until an ACK is received
@@ -39,7 +41,7 @@ def send_message(conn, message: bytes):
         # send the message again
         message = conn.sendall(message)
         # receive the answer again
-        answer = conn.recv(sys.getsizeof(message))
+        answer = conn.recv(RECV_BUFFER)
         answer = json.loads(answer.decode("utf-8"))
         msg_type = answer["msg"]["type"]
 
