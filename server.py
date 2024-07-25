@@ -11,7 +11,7 @@ from pprint import pprint
 from utils import parse_args, calculate_crc8, send_message
 from game import Game
 
-from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
+from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS, RECV_BUFFER
 
 players_queue = asyncio.Queue()
 
@@ -85,6 +85,7 @@ class Server:
                             "shackle": shackle,
                             "round_num": round_num,
                             "cards_per_player": self.cards_per_player,
+                            "player_number": current_player.port,
                         }
 
                         for card in current_player.cards:
@@ -121,6 +122,7 @@ class Server:
 
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
+                            input("Press enter to continue to the BETTING state")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -159,7 +161,7 @@ class Server:
                         current_player = game.players[self.token]
 
                         # receive the player's bet
-                        player_bet = current_conn.recv(412)
+                        player_bet = current_conn.recv(RECV_BUFFER)
                         player_bet = json.loads(player_bet.decode("utf-8"))
                         # check if the message crc8 is valid
                         answer_crc8 = message_template
