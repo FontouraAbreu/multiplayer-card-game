@@ -122,7 +122,6 @@ class Server:
 
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
-                            input("Press enter to continue to the BETTING state")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -199,7 +198,6 @@ class Server:
                         game.round.play_bet(player_bet, player.port)
 
                         if all(player.has_bet for player in game.players):
-                            input("Press enter to continue to the PLAYING state")
                             game.state = "PLAYING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -223,9 +221,20 @@ class Server:
                         message["msg"]["type"] = "PLAYING"
                         message["has_message"] = True
                         message["bearer"] = self.token
-                        message["msg"][
-                            "content"
-                        ] = ""  # TALVEZ ENVIAR AS CARTAS JOGADAS NO ROUND ATUAL
+
+                        # if the current player is not the first player
+                        # send also the cards played by the other players as well as their lives
+                        if (
+                            game.round.current_player != 1
+                            and game.round.current_winning_player != None
+                        ):
+                            message["msg"]["content"] = {
+                                "current_winning_card": game.round.current_winning_card,
+                                "current_winning_player": game.round.current_winning_player,
+                                "current_winning_player_lives": game.round.current_winning_player_lives,
+                            }
+                        else:
+                            message["msg"]["content"] = None
                         message["crc8"] = 1
 
                         # converts the message to bytes
@@ -263,15 +272,24 @@ class Server:
                         card_played = card_played["msg"]["content"]
                         # trasnform the card into a dict with suit and rank
                         card_played = json.loads(card_played)
-                        print("Card played:", card_played)
+                        """
+                        The card sent by the player is the index of the card in the player's hand
+                        """
+
+                        print("Card played:", current_player.cards[card_played])
 
                         # remove the card from the player's hand
-                        current_player.cards.remove(card_played["msg"]["content"])
-                        print(
-                            "Player",
+                        current_played_card = current_player.cards.pop(card_played)
+
+                        # calculate the total value of the card base on the rank and suit
+                        card_with_suit = (
+                            current_played_card.rank + current_played_card.suit
+                        )
+
+                        game.round.play_card(
+                            card_with_suit,
+                            current_played_card.value,
                             current_player.port,
-                            "played the card: ",
-                            card_played["msg"]["content"],
                         )
 
                         player = players_queue.get_nowait()

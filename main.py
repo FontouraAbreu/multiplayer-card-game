@@ -24,6 +24,9 @@ current_round_status = {
     "current_player_lifes": None,
     "current_player_bet": None,
     "current_player_number": 0,
+    "current_winning_card": None,
+    "current_winning_player": None,
+    "current_winning_player_lives": 0,
 }
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 
@@ -86,17 +89,11 @@ def main(args):
                         "player_number"
                     ]
 
-                    # print the player's lifes with hearts
-                    print("Suas vidas são:")
-                    for _ in range(message_content["lifes"]):
-                        print("❤️", end="  ")
-
                     # save the player's lifes in the local round status
                     current_round_status["current_player_lifes"] = message_content[
                         "lifes"
                     ]
 
-                    print("\nSuas cartas são:")
                     for card in message_content["cards"]:
                         # converting the card suit to the unicode representation
                         card["suit"] = (
@@ -105,8 +102,6 @@ def main(args):
                             .encode()
                             .decode("unicode-escape")
                         )
-                        print(f"Carta: {card['rank']} {card['suit']}")
-                        # save the player's cards in the local round status
                         current_round_status["current_player_cards"].append(
                             f"{card['rank']} {card['suit']}"  # DEVERIAMOS ESTAR CRIANDO UM OBJETO CARD AQUI
                         )
@@ -117,11 +112,6 @@ def main(args):
                     """
                     In this state, the game will show the player's lifes and asks for the player's bet
                     """
-
-                    # print the players lifes with hearts
-                    print("Suas vidas são:")
-                    for _ in range(current_round_status["current_player_lifes"]):
-                        print("❤️", end="  ")
 
                     # print the player's cards
                     print("\nSuas cartas são:")
@@ -167,6 +157,23 @@ def main(args):
                     """
                     In this state, the game will show the player's lifes and asks for the player's card
                     """
+
+                    # if there is a message content
+                    # extract the current round winning status
+                    if message["msg"]["content"] != None:
+                        current_round_status["current_winning_card"] = message["msg"][
+                            "content"
+                        ]["current_winning_card"]
+                        current_round_status["current_winning_player"] = message["msg"][
+                            "content"
+                        ]["current_winning_player"]
+                        current_round_status["current_winning_player_lives"] = message[
+                            "msg"
+                        ]["content"]["current_winning_player_lives"]
+                        print(
+                            f"O jogador {current_round_status['current_winning_player']} está ganhando a rodada com a carta {current_round_status['current_winning_card']}"
+                        )
+
                     # print the players lifes with hearts
                     print("Suas vidas são:")
                     for _ in range(current_round_status["current_player_lifes"]):
@@ -175,21 +182,23 @@ def main(args):
                     # print the player's cards
                     print("\nSuas cartas são:")
                     for card in current_round_status["current_player_cards"]:
-                        print(card)
+                        print("Carta: " + card)
 
                     # ask the player for the card
                     print("Qual carta você joga?")
-                    card_num = int(input())
+                    card_num = input()
+
+                    # updates the current winning status
 
                     # Get card from player's hand
                     card = current_round_status["current_player_cards"].pop(
-                        card_num - 1
+                        int(card_num) - 1
                     )
 
                     # Send the player's card
                     message = message_template
                     message["msg"]["type"] = "PLAYING"
-                    message["msg"]["content"] = card
+                    message["msg"]["content"] = card_num
                     message["has_message"] = True
                     message["bearer"] = None
                     message["crc8"] = 1
