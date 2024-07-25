@@ -71,9 +71,15 @@ def main(args):
                     print(f"=----= Rodada {message_content['round_num']} =----=")
                     # save the round number in the local round status
                     current_round_status["round_number"] = message_content["round_num"]
+
                     print(f"A manilha {message_content['shackle']}")
                     # save the shackle in the local round status
                     current_round_status["shackle"] = message_content["shackle"]
+
+                    # save the number of cards per player in the local round status
+                    current_round_status["cards_per_player"] = message_content[
+                        "cards_per_player"
+                    ]
 
                     # print the player's lifes with hearts
                     print("Suas vidas são:")
@@ -120,19 +126,22 @@ def main(args):
                     # ask the player for the bet
                     print("Quantas rodadas você faz?")
                     bet = int(input())
+                    # retrieve the sum of the bets
+                    sum_of_bets = message["msg"]["content"] + bet
 
-                    # IMPLEMENTAR AQUI A VERIFICAÇÃO DE APOSTAS
                     # Sum of bets cannot be equal to the number of rounds
-                    # while (
-                    #     sum([bet["bet"] for bet in game.round.bets])
-                    #     == game.round.cards_per_player
-                    # ):
-                    #     print(
-                    #         "A soma das apostas deve ser diferente do número de rodadas"
-                    #     )
-                    #     print("Faça uma nova aposta:")
-                    #     bet = int(input())
-                    # IMPLEMENTAR AQUI A VERIFICAÇÃO DE APOSTAS
+                    while sum_of_bets == current_round_status["cards_per_player"]:
+                        print(
+                            "A soma das apostas deve ser diferente do número de rodadas!"
+                        )
+                        print(
+                            "Você pode apostar qualquer número de rodadas diferente de",
+                            current_round_status["cards_per_player"]
+                            - message["msg"]["content"],
+                        )
+                        print("Faça uma nova aposta:")
+                        bet = int(input())
+                        sum_of_bets = message["msg"]["content"] + bet
 
                     # Send the player's bet
                     message = message_template
@@ -146,10 +155,9 @@ def main(args):
                     message = json.dumps(message, indent=2).encode("utf-8")
                     send_message(client_socket, message)
 
-            print("Waiting for message...")
+            # Receive the message from the server
             message = client_socket.recv(522)
-            print("Message received:", message)
-
+            # decode the message
             message = json.loads(message.decode("utf-8"))
 
             # check if the message crc8 is valid
