@@ -84,6 +84,7 @@ class Server:
                             "lifes": current_player.lifes,
                             "shackle": shackle,
                             "round_num": round_num,
+                            "cards_per_player": self.cards_per_player,
                         }
 
                         for card in current_player.cards:
@@ -120,7 +121,6 @@ class Server:
 
                         # verifica se todos os jogadores tem cartas, se tiver muda de estado
                         if all(player.has_cards for player in game.players):
-                            input("Press enter to continue to the BETTING state")
                             game.state = "BETTING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -141,11 +141,13 @@ class Server:
 
                         player = players_queue.get_nowait()
 
+                        sum_of_bets = sum(player.current_bet for player in game.players)
+                        # sends the player the BETTING message
                         message = message_template
                         message["msg"]["type"] = "BETTING"
                         message["msg"][
                             "content"
-                        ] = player.lifes  # THIS CAN BE CHANGED AS NEEDED
+                        ] = sum_of_bets  # the sum of the bets of all players
                         message["has_message"] = True
                         message["bearer"] = self.token
                         message["crc8"] = 1
@@ -183,6 +185,7 @@ class Server:
                                 json.dumps(answer_crc8).encode("utf-8")
                             )
                             current_player.has_bet = True
+                            current_player.current_bet = player_bet["msg"]["content"]
 
                         print(
                             "Player",
@@ -191,7 +194,6 @@ class Server:
                             player_bet["msg"]["content"],
                         )
 
-                        ## CONFERIR A PARTIR DAQUI A LOGICA DO JOGO
                         game.round.play_bet(player_bet, player.port)
 
                         if all(player.has_bet for player in game.players):
