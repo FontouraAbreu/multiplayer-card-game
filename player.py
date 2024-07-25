@@ -28,6 +28,7 @@ class Player:
         self.is_dealer = is_dealer
         self.has_cards = has_cards
         self.has_bet = False
+        self.current_bet = 0
         self.color = color
         self.message_queue = []  # Fila de mensagens do jogador
         self.has_token = False  # O jogador tem o token?
