@@ -12,7 +12,7 @@ from deck import Deck
 from client import Client
 from utils import calculate_crc8, send_message
 
-from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS
+from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS, RECV_BUFFER
 
 
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
@@ -24,6 +24,7 @@ current_round_status = {
     "current_player_cards": [],
     "current_player_lifes": None,
     "current_player_bet": None,
+    "current_player_number": 0,
 }
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 
@@ -81,6 +82,11 @@ def main(args):
                         "cards_per_player"
                     ]
 
+                    # save the current player number in the local round status
+                    current_round_status["current_player_number"] = message_content[
+                        "player_number"
+                    ]
+
                     # print the player's lifes with hearts
                     print("Suas vidas são:")
                     for _ in range(message_content["lifes"]):
@@ -129,8 +135,11 @@ def main(args):
                     # retrieve the sum of the bets
                     sum_of_bets = message["msg"]["content"] + bet
 
-                    # Sum of bets cannot be equal to the number of rounds
-                    while sum_of_bets == current_round_status["cards_per_player"]:
+                    # Last player must && sum of bets cannot be equal to the number of rounds
+                    while (
+                        current_round_status["current_player_number"] == PLAYERS
+                        and sum_of_bets == current_round_status["cards_per_player"]
+                    ):
                         print(
                             "A soma das apostas deve ser diferente do número de rodadas!"
                         )
@@ -156,7 +165,7 @@ def main(args):
                     send_message(client_socket, message)
 
             # Receive the message from the server
-            message = client_socket.recv(522)
+            message = client_socket.recv(RECV_BUFFER)
             # decode the message
             message = json.loads(message.decode("utf-8"))
 
