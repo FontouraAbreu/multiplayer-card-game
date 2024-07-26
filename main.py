@@ -8,10 +8,9 @@ from game import Game
 from player import Player
 from round import Round
 from deck import Deck
-from client import Client
-from utils import calculate_crc8, send_message
+from utils import calculate_crc8, send_message, parse_client_args
 
-from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS, RECV_BUFFER
+from config import SERVER_ADDRESS, PLAYERS, RECV_BUFFER, NETWORK_CONNECTIONS
 
 
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
@@ -37,7 +36,34 @@ def main(args):
     """
     # Make a while loop to keep the game running
     print("Starting game...")
-    client = Client(SERVER_ADDRESS, SERVER_PORT)
+
+    # self node config
+    node_config = NETWORK_CONNECTIONS[f"M{args.player_id}"]
+    listen_address = node_config["address"]
+    listen_port = node_config["listen_port"]
+    send_port = node_config["send_port"]
+    if args.player_id == PLAYERS:
+        next_node_address = NETWORK_CONNECTIONS["M0"]["address"]
+        print("M0")
+    else:
+        next_node_address = NETWORK_CONNECTIONS[f"M{args.player_id + 1}"]["address"]
+        print(f"M{args.player_id + 1}")
+
+    # configuring listen socket
+    listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listen_socket.bind((listen_address, listen_port))
+    listen_socket.listen(1)
+    print(f"Listening on {listen_address}:{listen_port}")
+    print(f"Will try to connect to {next_node_address}:{send_port}")
+    print(f"Waiting for connection... Press Enter when all players are listening")
+    input()
+
+    # configuring send socket
+    send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_socket.connect((next_node_address, send_port))
+    print(f"Connected to {next_node_address}:{send_port}")
+    input("Press Enter to start the game")
+
     message_template = {
         "has_message": False,  # has_message is a boolean that indicates if the token has a message
         "msg": {
@@ -51,11 +77,10 @@ def main(args):
     }
     message = message_template
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-        client_socket.connect((client.host, client.port))
-
-        while message["msg"]["type"] != "GAME_OVER":
-
+    while message["msg"]["type"] != "GAME_OVER":
+        # Accept the connection
+        client_socket, address = listen_socket.accept()
+        with client_socket:
             msg_type = message["msg"]["type"]
 
             # check if the current player is the dst of the message
@@ -328,4 +353,5 @@ def main(args):
 if __name__ == "__main__":
     # Change to logging.DEBUG to see debug statements...
     logging.basicConfig(level=logging.INFO)
-    main(sys.argv[1:])
+    args = parse_client_args()
+    main(args)

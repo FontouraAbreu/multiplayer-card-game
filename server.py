@@ -1,25 +1,21 @@
 import socket
 import threading
 import asyncio
-import time
 import sys
 import json
 
 
-from pprint import pprint
-
-from utils import parse_args, calculate_crc8, send_message
+from utils import parse_server_args, calculate_crc8, send_message
 from game import Game
 
-from config import SERVER_ADDRESS, SERVER_PORT, PLAYERS, RECV_BUFFER
+from config import SERVER_ADDRESS, PLAYERS, RECV_BUFFER, NETWORK_CONNECTIONS
 
 players_queue = asyncio.Queue()
 
 
 class Server:
-    def __init__(self, host, port, cards_per_player, turns):
+    def __init__(self, host, cards_per_player, turns):
         self.host = host
-        self.port = port
         self.cards_per_player = cards_per_player
         self.turns = turns
         self.clients = []
@@ -28,15 +24,29 @@ class Server:
         self.current_player = 0
 
     def start(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            server_socket.bind((self.host, self.port))
-            server_socket.listen(PLAYERS)
-            print(f"Server started at {self.host}:{self.port}")
-            while len(self.clients) < PLAYERS:
-                conn, addr = server_socket.accept()
-                with self.lock:
-                    self.clients.append(conn)
-                print(f"Player connected from {addr}")
+        config = NETWORK_CONNECTIONS["M0"]
+        listen_address = config["address"]
+        listen_port = config["listen_port"]
+        send_port = config["send_port"]
+        next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
+
+        # configuring listening socket
+        listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listen_socket.bind((listen_address, listen_port))
+        listen_socket.listen(1)
+        print(f"Server listening on {listen_address}:{listen_port}")
+        print("Waiting for connection... Press Enter when all players are listening")
+        input()
+
+        # configuring sending socket
+        send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        send_socket.connect((next_node_address, send_port))
+        print(f"Server connected to {next_node_address}:{send_port}")
+
+        server_socket, addr = listen_socket.accept()
+        print(f"Server connected to {addr}")
+
+        with server_socket:
             try:
                 threading.Thread(target=self.manage_game).start()
             except Exception as e:
@@ -64,6 +74,7 @@ class Server:
         # set the starting state
 
         while not players_queue.empty() and game.state != "GAME_OVER":
+            input("Press Enter to continue...")
             with self.lock:  # lock the token
                 current_conn = self.clients[self.token]
 
@@ -304,6 +315,6 @@ class Server:
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    server = Server(SERVER_ADDRESS, SERVER_PORT, args.cards_per_player, args.turns)
+    args = parse_server_args()
+    server = Server(SERVER_ADDRESS, args.cards_per_player, args.turns)
     server.start()
