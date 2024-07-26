@@ -2,10 +2,10 @@ import argparse
 import json
 import sys
 
-from config import RECV_BUFFER
+from config import RECV_BUFFER, PLAYERS
 
 
-def parse_args():
+def parse_server_args():
     parser = argparse.ArgumentParser(description="Start a server")
     parser.add_argument(
         "cards_per_player",
@@ -18,6 +18,19 @@ def parse_args():
         metavar="turns",
         type=int,
         help="The number of turns to play",
+    )
+    return parser.parse_args()
+
+
+def parse_client_args():
+    parser = argparse.ArgumentParser(description="Start a client player")
+    parser.add_argument(
+        "player_id",
+        metavar="player_id",
+        type=int,
+        help="The player id that will be used to identify the player in the network. Keep in mind that the player id should be unique and in a range between 1 and {}".format(
+            PLAYERS
+        ),
     )
     return parser.parse_args()
 
