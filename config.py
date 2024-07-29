@@ -2,6 +2,35 @@ SERVER_ADDRESS = ""
 PLAYERS = 2
 RECV_BUFFER = 1024
 
+MESSAGE_TEMPLATE = {
+    "has_message": False,
+    "msg": {
+        "src": None,
+        "dst": None,
+        "content": None,
+        "crc": None,
+        "type": None,
+    },
+    "bearer": None,
+    "crc8": None,
+}
+"""
+the message template is a dictionary that represents the structure of the message
+the format is:
+{
+    "has_message": bool, # if the message has content
+    "msg": {
+        "src": str, # the source of the message [server, M1, M2, M3, M4]
+        "dst": str, # the destination of the message [server, M1, M2, M3, M4]
+        "content": str, # the content of the message
+        "crc": str, # the crc of the message
+        "type": str, # the type of the message
+    },
+    "bearer": str, # the bearer of the message
+    "crc8": int, # the crc8 of the message
+}
+"""
+
 # SERVER
 SERVER_LISTEN_PORT = 12345
 SERVER_SEND_PORT = 12346
