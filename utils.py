@@ -1,8 +1,10 @@
 import argparse
 import json
+import socket
+import time
 import sys
 
-from config import RECV_BUFFER, PLAYERS
+from config import RECV_BUFFER, PLAYERS, MESSAGE_TEMPLATE
 
 
 def parse_server_args():
@@ -42,8 +44,13 @@ def send_message(conn, message: bytes):
     """
     # print("size of the filled message:", sys.getsizeof(message))
     print("Sending message:", message)
+    print(conn)
+    try:
+        conn.sendall(message)
+    except Exception as e:
+        print("Error sending message:", e)
+        return
 
-    conn.sendall(message)
     # waits for ACK response
     print("waiting for ACK")
     answer = conn.recv(RECV_BUFFER)
@@ -52,13 +59,112 @@ def send_message(conn, message: bytes):
     # keep sending the message until an ACK is received
     while msg_type != "ACK":
         # send the message again
-        message = conn.sendall(message)
+        try:
+            message = conn.sendall(message)
+        except Exception as e:
+            print("Error sending message:", e)
+            return
+
         # receive the answer again
         answer = conn.recv(RECV_BUFFER)
         answer = json.loads(answer.decode("utf-8"))
         msg_type = answer["msg"]["type"]
 
     print("ACK received")
+
+
+def receive_message(conn, player_id):
+    """
+    Receives a message from the client and sends an ACK response
+    """
+    message = conn.recv(RECV_BUFFER)
+    if not message:
+        return None
+
+    message = json.loads(message.decode("utf-8"))
+
+    # check if the message crc8 is valid
+    answer_crc8 = MESSAGE_TEMPLATE
+    if message["crc8"] != 1:
+        print("CRC8 inválido, enviando NACK")
+        # answer the message with a NACK
+        answer_crc8["has_message"] = False
+        answer_crc8["bearer"] = None
+        answer_crc8["msg"]["type"] = "NACK"
+        answer_crc8["crc8"] = 1
+        try:
+            conn.sendall(json.dumps(answer_crc8).encode("utf-8"))
+        except socket.error as e:
+            print(f"Error sending message - {e}")
+            time.sleep(5)
+            return None
+        # finally:
+        #     conn.close()
+        #     print("Connection to the server closed")
+        return None
+    else:
+        print("CRC8 válido, enviando ACK")
+        # answer the message with a ACK
+        answer_crc8["has_message"] = False
+        answer_crc8["bearer"] = None
+        answer_crc8["msg"]["type"] = "ACK"
+        answer_crc8["crc8"] = 1
+        try:
+            conn.sendall(json.dumps(answer_crc8).encode("utf-8"))
+        except socket.error as e:
+            print(f"Error sending message - {e}")
+            time.sleep(5)
+            return None
+        # finally:
+        #     conn.close()
+        #     print("Connection to the server closed")
+
+    return message
+
+
+def receive_message_no_ack(conn, player_id):
+    """
+    Receives a message from the client without sending an ACK response
+    """
+    message = conn.recv(RECV_BUFFER)
+    if not message:
+        return None
+
+    message = json.loads(message.decode("utf-8"))
+
+    # check if the message is destined to the player
+    if message["msg"]["dst"] != player_id:
+        print("Message not destined to player")
+        return -1
+
+    return message
+
+
+def send_ack_or_nack(conn, message):
+    """
+    Sends an ACK or NACK message to the client
+    """
+    message["has_message"] = False
+    message["msg"]["dst"] = "server"
+    message["bearer"] = None
+    message["crc8"] = 1
+    if message["crc8"] == 1:
+        print("CRC8 válido, enviando ACK")
+        # answer the message with a ACK
+        message["msg"]["type"] = "ACK"
+    else:
+        print("CRC8 inválido, enviando NACK")
+        # answer the message with a NACK
+        message["msg"]["type"] = "NACK"
+
+    try:
+        conn.sendall(json.dumps(message).encode("utf-8"))
+    except socket.error as e:
+        print(f"Error sending message - {e}")
+        time.sleep(5)
+        return None
+
+    return 1
 
 
 def calculate_crc8(message):

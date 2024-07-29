@@ -3,12 +3,19 @@ import threading
 import asyncio
 import sys
 import json
+import time
 
 
-from utils import parse_server_args, calculate_crc8, send_message
+from utils import parse_server_args, calculate_crc8, send_message, receive_message
 from game import Game
 
-from config import SERVER_ADDRESS, PLAYERS, RECV_BUFFER, NETWORK_CONNECTIONS
+from config import (
+    SERVER_ADDRESS,
+    PLAYERS,
+    RECV_BUFFER,
+    NETWORK_CONNECTIONS,
+    MESSAGE_TEMPLATE,
+)
 
 players_queue = asyncio.Queue()
 
@@ -18,10 +25,12 @@ class Server:
         self.host = host
         self.cards_per_player = cards_per_player
         self.turns = turns
-        self.clients = []
+        self.clients = [i for i in range(1, PLAYERS + 1)]
         self.lock = threading.Lock()
         self.token = None
         self.current_player = 0
+        self.server_socket = None
+        self.send_socket = None
 
     def start(self):
         config = NETWORK_CONNECTIONS["M0"]
@@ -39,14 +48,18 @@ class Server:
         input()
 
         # configuring sending socket
-        send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        send_socket.connect((next_node_address, send_port))
-        print(f"Server connected to {next_node_address}:{send_port}")
+        try:
+            self.send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.send_socket.connect((next_node_address, send_port))
+            print(f"Server connected to {next_node_address}:{send_port}")
+        except socket.error as e:
+            print(f"Error connecting to the next node: {e}")
+            time.sleep(5)
 
-        server_socket, addr = listen_socket.accept()
+        self.server_socket, addr = listen_socket.accept()
         print(f"Server connected to {addr}")
 
-        with server_socket:
+        with self.server_socket:
             try:
                 threading.Thread(target=self.manage_game).start()
             except Exception as e:
@@ -54,18 +67,6 @@ class Server:
 
     def manage_game(self):
         self.token = 0
-        message_template = {
-            "has_message": False,
-            "msg": {
-                "src": None,
-                "dst": None,
-                "content": None,
-                "crc": None,
-                "type": None,
-            },
-            "bearer": None,
-            "crc8": None,
-        }
 
         # Start the game
         game = Game(PLAYERS, self.cards_per_player, self.turns)
@@ -112,9 +113,10 @@ class Server:
                         print("info that will be sent:", serializable_message)
                         print("size of the clean message:")
 
-                        sys.getsizeof(message_template),
                         # send to the player the cards he has
-                        message = message_template
+                        message = MESSAGE_TEMPLATE
+                        message["msg"]["src"] = "server"
+                        message["msg"]["dst"] = f"M{current_player.port}"
                         message["msg"]["type"] = "DEALING"
                         message["msg"]["content"] = serializable_message
                         message["has_message"] = True
@@ -123,10 +125,10 @@ class Server:
 
                         # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(current_conn, message)
+                        send_message(self.send_socket, message)
 
                         # send the player the lifes he has
-                        message = message_template
+                        message = MESSAGE_TEMPLATE
                         # hop to the next player
 
                         current_player.has_cards = True
@@ -155,7 +157,7 @@ class Server:
 
                         sum_of_bets = sum(player.current_bet for player in game.players)
                         # sends the player the BETTING message
-                        message = message_template
+                        message = MESSAGE_TEMPLATE
                         message["msg"]["type"] = "BETTING"
                         message["msg"][
                             "content"
@@ -166,36 +168,16 @@ class Server:
 
                         # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(current_conn, message)
+                        send_message(self.send_socket, message)
 
                         current_player = game.players[self.token]
 
                         # receive the player's bet
-                        player_bet = current_conn.recv(RECV_BUFFER)
-                        player_bet = json.loads(player_bet.decode("utf-8"))
-                        # check if the message crc8 is valid
-                        answer_crc8 = message_template
-                        if player_bet["crc8"] != 1:
-                            print("CRC8 inválido, enviando NACK")
-                            # answer the message with a NACK
-                            answer_crc8["has_message"] = False
-                            answer_crc8["bearer"] = None
-                            answer_crc8["msg"]["type"] = "NACK"
-                            answer_crc8["crc8"] = 1
-                            current_conn.sendall(
-                                json.dumps(answer_crc8).encode("utf-8")
-                            )
+                        player_bet = self.server_socket.recv(self.server_socket)
+
+                        if player_bet == None:
                             continue
                         else:
-                            print("CRC8 válido, enviando ACK")
-                            # answer the message with a ACK
-                            answer_crc8["has_message"] = False
-                            answer_crc8["bearer"] = None
-                            answer_crc8["msg"]["type"] = "ACK"
-                            answer_crc8["crc8"] = 1
-                            current_conn.sendall(
-                                json.dumps(answer_crc8).encode("utf-8")
-                            )
                             current_player.has_bet = True
                             current_player.current_bet = player_bet["msg"]["content"]
 
@@ -228,7 +210,7 @@ class Server:
                             "lifes",
                         )
 
-                        message = message_template
+                        message = MESSAGE_TEMPLATE
                         message["msg"]["type"] = "PLAYING"
                         message["has_message"] = True
                         message["bearer"] = self.token
@@ -250,34 +232,10 @@ class Server:
 
                         # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(current_conn, message)
+                        send_message(self.send_socket, message)
 
                         # receive the player's card
-                        card_played = current_conn.recv(RECV_BUFFER)
-                        card_played = json.loads(card_played.decode("utf-8"))
-                        # check if the message crc8 is valid
-                        answer_crc8 = message_template
-                        if card_played["crc8"] != 1:
-                            print("CRC8 inválido, enviando NACK")
-                            # answer the message with a NACK
-                            answer_crc8["has_message"] = False
-                            answer_crc8["bearer"] = None
-                            answer_crc8["msg"]["type"] = "NACK"
-                            answer_crc8["crc8"] = 1
-                            current_conn.sendall(
-                                json.dumps(answer_crc8).encode("utf-8")
-                            )
-                            continue
-                        else:
-                            print("CRC8 válido, enviando ACK")
-                            # answer the message with a ACK
-                            answer_crc8["has_message"] = False
-                            answer_crc8["bearer"] = None
-                            answer_crc8["msg"]["type"] = "ACK"
-                            answer_crc8["crc8"] = 1
-                            current_conn.sendall(
-                                json.dumps(answer_crc8).encode("utf-8")
-                            )
+                        card_played = receive_message(self.server_socket, "server")
 
                         # extract the card from the message
                         card_played = card_played["msg"]["content"]

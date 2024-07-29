@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import time
 import socket
 import json
 
@@ -8,10 +9,29 @@ from game import Game
 from player import Player
 from round import Round
 from deck import Deck
-from utils import calculate_crc8, send_message, parse_client_args
+from utils import (
+    calculate_crc8,
+    send_message,
+    parse_client_args,
+    receive_message,
+    receive_message_no_ack,
+    send_ack_or_nack,
+)
 
-from config import SERVER_ADDRESS, PLAYERS, RECV_BUFFER, NETWORK_CONNECTIONS
+from config import (
+    SERVER_ADDRESS,
+    PLAYERS,
+    RECV_BUFFER,
+    NETWORK_CONNECTIONS,
+    MESSAGE_TEMPLATE,
+)
 
+
+player_id = None
+"""
+The player id that will be used to identify the player in the network.
+it can be any number between 1 and the number of players
+"""
 
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 current_round_status = {
@@ -22,7 +42,7 @@ current_round_status = {
     "current_player_cards": [],
     "current_player_lifes": None,
     "current_player_bet": None,
-    "current_player_number": 0,
+    "current_player_number": 1,
     "current_winning_card": None,
     "current_winning_player": None,
     "current_winning_player_lives": 0,
@@ -38,16 +58,16 @@ def main(args):
     print("Starting game...")
 
     # self node config
-    node_config = NETWORK_CONNECTIONS[f"M{args.player_id}"]
+    node_config = NETWORK_CONNECTIONS[f"M{player_id}"]
     listen_address = node_config["address"]
     listen_port = node_config["listen_port"]
     send_port = node_config["send_port"]
-    if args.player_id == PLAYERS:
+    if player_id == PLAYERS:
         next_node_address = NETWORK_CONNECTIONS["M0"]["address"]
         print("M0")
     else:
-        next_node_address = NETWORK_CONNECTIONS[f"M{args.player_id + 1}"]["address"]
-        print(f"M{args.player_id + 1}")
+        next_node_address = NETWORK_CONNECTIONS[f"M{player_id + 1}"]["address"]
+        print(f"M{player_id + 1}")
 
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -59,33 +79,30 @@ def main(args):
     input()
 
     # configuring send socket
-    send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_socket.connect((next_node_address, send_port))
-    print(f"Connected to {next_node_address}:{send_port}")
-    input("Press Enter to start the game")
+    try:
+        send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        send_socket.connect((next_node_address, send_port))
+        print(f"Connected to {next_node_address}:{send_port}")
+    except socket.error as e:
+        print(f"Error connecting to {next_node_address}:{send_port} - {e}")
+        time.sleep(5)
+    # finally:
+    #     send_socket.close()
 
-    message_template = {
-        "has_message": False,  # has_message is a boolean that indicates if the token has a message
-        "msg": {
-            "src": None,
-            "dst": None,
-            "content": None,
-            "crc": None,
-            "type": None,
-        },  # msg is the message that is being sent
-        "bearer": None,  # bearer is the index o the node that has the token
-    }
-    message = message_template
+    message = MESSAGE_TEMPLATE
 
+    # connect to the next node
     while message["msg"]["type"] != "GAME_OVER":
-        # Accept the connection
+
         client_socket, address = listen_socket.accept()
+        current_player = current_round_status["current_player_number"]
+
+        print("starting game loop with the current message: ", message)
+
         with client_socket:
             msg_type = message["msg"]["type"]
 
-            # check if the current player is the dst of the message
-            # if not message["msg"]["dst"] == game.players[game.current_player].port:
-            #     continue
+            print(f"Received message from {address}: {message}")
 
             match msg_type:
                 case "DEALING":
@@ -119,6 +136,7 @@ def main(args):
                         "lifes"
                     ]
 
+                    # save the player's cards in the local round status
                     for card in message_content["cards"]:
                         # converting the card suit to the unicode representation
                         card["suit"] = (
@@ -131,7 +149,15 @@ def main(args):
                             f"{card['rank']} {card['suit']}"  # DEVERIAMOS ESTAR CRIANDO UM OBJETO CARD AQUI
                         )
 
-                    # save the player's cards
+                    # print the player's lifes with hearts
+                    print("Suas vidas são:")
+                    for _ in range(current_round_status["current_player_lifes"]):
+                        print("❤️", end="  ")
+
+                    # print the player's cards
+                    print("\nSuas cartas são:")
+                    for card in current_round_status["current_player_cards"]:
+                        print(card)
 
                 case "BETTING":
                     """
@@ -167,7 +193,7 @@ def main(args):
                         sum_of_bets = message["msg"]["content"] + bet
 
                     # Send the player's bet
-                    message = message_template
+                    message = MESSAGE_TEMPLATE
                     message["msg"]["type"] = "BETTING"
                     message["msg"]["content"] = bet
                     message["has_message"] = True
@@ -221,7 +247,7 @@ def main(args):
                     )
 
                     # Send the player's card
-                    message = message_template
+                    message = MESSAGE_TEMPLATE
                     message["msg"]["type"] = "PLAYING"
                     message["msg"]["content"] = card_num
                     message["has_message"] = True
@@ -233,29 +259,32 @@ def main(args):
                     send_message(client_socket, message)
 
             # Receive the message from the server
-            message = client_socket.recv(RECV_BUFFER)
-            # decode the message
-            message = json.loads(message.decode("utf-8"))
-
-            # check if the message crc8 is valid
-            answer_crc8 = message_template
-            if message["crc8"] != 1:
-                print("CRC8 inválido, enviando NACK")
-                # answer the message with a NACK
-                answer_crc8["has_message"] = False
-                answer_crc8["bearer"] = None
-                answer_crc8["msg"]["type"] = "NACK"
-                answer_crc8["crc8"] = 1
-                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
+            message = receive_message_no_ack(client_socket, "M{}".format(player_id))
+            if message is None:
+                print("Message is None")
+                message = MESSAGE_TEMPLATE
                 continue
-            else:
-                print("CRC8 válido, enviando ACK")
-                # answer the message with a ACK
-                answer_crc8["has_message"] = False
-                answer_crc8["bearer"] = None
-                answer_crc8["msg"]["type"] = "ACK"
-                answer_crc8["crc8"] = 1
-                client_socket.sendall(json.dumps(answer_crc8).encode("utf-8"))
+            # if the message is not destined to the player
+            # send it to the next player
+            elif message == -1:
+                # converts the message to bytes
+                message = json.dumps(message, indent=2).encode("utf-8")
+                send_message(send_socket, message)
+                message = MESSAGE_TEMPLATE
+                continue
+
+            # if the message is destined to the player
+            # send an ACK | NACK based on the crc8
+            sent = send_ack_or_nack(client_socket, message)
+            if sent is None:
+                print("Message is sent is None")
+                message = MESSAGE_TEMPLATE
+                continue
+
+            # hop to the next player
+            current_round_status["current_player_number"] += (
+                1 if current_player < PLAYERS else 1
+            )
 
             # if game.state == "BETTING":
             #     if queue.empty():
@@ -354,4 +383,5 @@ if __name__ == "__main__":
     # Change to logging.DEBUG to see debug statements...
     logging.basicConfig(level=logging.INFO)
     args = parse_client_args()
+    player_id = args.player_id
     main(args)
