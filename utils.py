@@ -43,7 +43,7 @@ def send_message(conn, message: bytes):
     while the message is not an ACK message it will keep sending the message
     """
     # print("size of the filled message:", sys.getsizeof(message))
-    print("Sending message:", message)
+    print("Sending message and waiting for ACK/NACK:", message)
     print(conn)
     try:
         conn.sendall(message)
@@ -140,25 +140,36 @@ def receive_message_no_ack(conn, player_id):
     return message
 
 
-def send_ack_or_nack(conn, message):
+def send_ack_or_nack(conn, message, current_player_id):
     """
     Sends an ACK or NACK message to the client
     """
-    message["has_message"] = False
-    message["msg"]["dst"] = "server"
-    message["bearer"] = None
-    message["crc8"] = 1
+
+    # set the message template
+    ack_or_nack_answer = MESSAGE_TEMPLATE
+
+    # fill the message template
+    ack_or_nack_answer["has_message"] = False
+    ack_or_nack_answer["msg"]["src"] = current_player_id
+    ack_or_nack_answer["msg"]["dst"] = "server"
+    ack_or_nack_answer["bearer"] = None
+    ack_or_nack_answer["crc8"] = 1
+
+    # check if the message crc8 is valid
     if message["crc8"] == 1:
         print("CRC8 válido, enviando ACK")
         # answer the message with a ACK
-        message["msg"]["type"] = "ACK"
+        ack_or_nack_answer["msg"]["type"] = "ACK"
     else:
         print("CRC8 inválido, enviando NACK")
         # answer the message with a NACK
-        message["msg"]["type"] = "NACK"
+        ack_or_nack_answer["msg"]["type"] = "NACK"
 
+    print("Sending ACK/NACK message:", ack_or_nack_answer)
+
+    # send the message to the next node
     try:
-        conn.sendall(json.dumps(message).encode("utf-8"))
+        conn.sendall(json.dumps(ack_or_nack_answer).encode("utf-8"))
     except socket.error as e:
         print(f"Error sending message - {e}")
         time.sleep(5)
