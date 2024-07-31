@@ -97,7 +97,30 @@ def main(args):
         client_socket, address = listen_socket.accept()
         current_player = current_round_status["current_player_number"]
 
-        print("starting game loop with the current message: ", message)
+        # Receive the message from the server
+        message = receive_message_no_ack(client_socket, "M{}".format(player_id))
+        if message is None:
+            print("Message is None")
+            message = MESSAGE_TEMPLATE
+            continue
+
+        # if the message is not destined to the player
+        # send it to the next player
+        elif message == -1:
+            print("Received message not destined to player, sending to the next player")
+            # converts the message to bytes
+            message = json.dumps(message, indent=2).encode("utf-8")
+            send_message(send_socket, message)
+            message = MESSAGE_TEMPLATE
+            continue
+
+        # if the message is destined to the player
+        # send an ACK | NACK based on the crc8
+        sent = send_ack_or_nack(client_socket, message, "M{}".format(player_id))
+        if sent is None:
+            print("Message is sent is None")
+            message = MESSAGE_TEMPLATE
+            continue
 
         with client_socket:
             msg_type = message["msg"]["type"]
@@ -257,29 +280,6 @@ def main(args):
                     # converts the message to bytes
                     message = json.dumps(message, indent=2).encode("utf-8")
                     send_message(client_socket, message)
-
-            # Receive the message from the server
-            message = receive_message_no_ack(client_socket, "M{}".format(player_id))
-            if message is None:
-                print("Message is None")
-                message = MESSAGE_TEMPLATE
-                continue
-            # if the message is not destined to the player
-            # send it to the next player
-            elif message == -1:
-                # converts the message to bytes
-                message = json.dumps(message, indent=2).encode("utf-8")
-                send_message(send_socket, message)
-                message = MESSAGE_TEMPLATE
-                continue
-
-            # if the message is destined to the player
-            # send an ACK | NACK based on the crc8
-            sent = send_ack_or_nack(client_socket, message)
-            if sent is None:
-                print("Message is sent is None")
-                message = MESSAGE_TEMPLATE
-                continue
 
             # hop to the next player
             current_round_status["current_player_number"] += (
