@@ -29,8 +29,10 @@ class Server:
         self.lock = threading.Lock()
         self.token = None
         self.current_player = 0
-        self.server_socket = None
+        self.listen_socket = None
         self.send_socket = None
+        self.next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
+        self.send_port = NETWORK_CONNECTIONS["M0"]["send_port"]
 
     def start(self):
         config = NETWORK_CONNECTIONS["M0"]
@@ -40,30 +42,20 @@ class Server:
         next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
 
         # configuring listening socket
-        listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listen_socket.bind((listen_address, listen_port))
-        listen_socket.listen(1)
+        self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.listen_socket.bind((listen_address, listen_port))
         print(f"Server listening on {listen_address}:{listen_port}")
         print("Waiting for connection... Press Enter when all players are listening")
         input()
 
         # configuring sending socket
+        self.send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print(f"Server connected to {next_node_address}:{send_port}")
+
         try:
-            self.send_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.send_socket.connect((next_node_address, send_port))
-            print(f"Server connected to {next_node_address}:{send_port}")
-        except socket.error as e:
-            print(f"Error connecting to the next node: {e}")
-            time.sleep(5)
-
-        self.server_socket, addr = listen_socket.accept()
-        print(f"Server connected to {addr}")
-
-        with self.server_socket:
-            try:
-                threading.Thread(target=self.manage_game).start()
-            except Exception as e:
-                print(f"Error starting the game: {e}")
+            threading.Thread(target=self.manage_game).start()
+        except Exception as e:
+            print(f"Error starting the game: {e}")
 
     def manage_game(self):
         self.token = 0
@@ -78,6 +70,8 @@ class Server:
             input("Press Enter to continue...")
             with self.lock:  # lock the token
                 current_conn = self.clients[self.token]
+
+                print("Current player:", current_conn)
 
                 match game.state:
                     case "DEALING":
@@ -125,7 +119,12 @@ class Server:
 
                         # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(self.send_socket, message)
+                        send_message(
+                            self.listen_socket,
+                            self.send_socket,
+                            message,
+                            (self.next_node_address, self.send_port),
+                        )
 
                         # send the player the lifes he has
                         message = MESSAGE_TEMPLATE
@@ -159,6 +158,8 @@ class Server:
                         # sends the player the BETTING message
                         message = MESSAGE_TEMPLATE
                         message["msg"]["type"] = "BETTING"
+                        message["msg"]["src"] = "server"
+                        message["msg"]["dst"] = f"M{current_player.port}"
                         message["msg"][
                             "content"
                         ] = sum_of_bets  # the sum of the bets of all players
@@ -168,12 +169,21 @@ class Server:
 
                         # converts the message to bytes
                         message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(self.send_socket, message)
+                        send_message(
+                            self.listen_socket,
+                            self.send_socket,
+                            message,
+                            (self.next_node_address, self.send_port),
+                        )
 
                         current_player = game.players[self.token]
 
                         # receive the player's bet
-                        player_bet = self.server_socket.recv(self.server_socket)
+                        player_bet = receive_message(
+                            self.listen_socket,
+                            self.send_socket,
+                            (self.next_node_address, self.send_port),
+                        )
 
                         if player_bet == None:
                             continue
@@ -212,6 +222,8 @@ class Server:
 
                         message = MESSAGE_TEMPLATE
                         message["msg"]["type"] = "PLAYING"
+                        message["msg"]["src"] = "server"
+                        message["msg"]["dst"] = f"M{current_player.port}"
                         message["has_message"] = True
                         message["bearer"] = self.token
 
@@ -231,11 +243,17 @@ class Server:
                         message["crc8"] = 1
 
                         # converts the message to bytes
-                        message = json.dumps(message, indent=2).encode("utf-8")
-                        send_message(self.send_socket, message)
+                        send_message(
+                            self.listen_socket,
+                            self.send_socket,
+                            message,
+                            (self.next_node_address, self.send_port),
+                        )
 
                         # receive the player's card
-                        card_played = receive_message(self.server_socket, "server")
+                        card_played = receive_message(
+                            self.listen_socket, self.send_socket, self.next_node_address
+                        )
 
                         # extract the card from the message
                         card_played = card_played["msg"]["content"]
@@ -265,11 +283,12 @@ class Server:
 
             # this passes the token to the next player
             with self.lock:
+                print("Passing the token to the next player")
                 self.token = (self.token + 1) % PLAYERS
 
-    def broadcast(self, message):
-        for client in self.clients:
-            client.sendall(message.encode())
+    # def broadcast(self, message):
+    #     for client in self.clients:
+    #         client.sendall(message.encode())
 
 
 if __name__ == "__main__":
