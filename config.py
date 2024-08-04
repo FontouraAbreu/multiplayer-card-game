@@ -4,6 +4,7 @@ RECV_BUFFER = 1024
 
 MESSAGE_TEMPLATE = {
     "has_message": False,
+    "broadcast": False,
     "msg": {
         "src": None,
         "dst": None,
