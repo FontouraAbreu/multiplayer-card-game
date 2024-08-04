@@ -215,6 +215,7 @@ def main(args):
                 current_player_bet["has_message"] = True
                 current_player_bet["bearer"] = None
                 current_player_bet["crc8"] = 1
+                current_player_bet["broadcast"] = True
 
                 # converts the message to bytes
                 current_player_bet = json.dumps(current_player_bet, indent=2).encode(
@@ -270,17 +271,21 @@ def main(args):
                 )
 
                 # Send the player's card
-                message = MESSAGE_TEMPLATE
-                message["msg"]["type"] = "PLAYING"
-                message["msg"]["content"] = card_num
-                message["has_message"] = True
-                message["bearer"] = None
-                message["crc8"] = 1
+                card_played = MESSAGE_TEMPLATE
+                card_played["msg"]["type"] = "PLAYING"
+                card_played["msg"]["content"] = card_num
+                card_played["has_message"] = True
+                card_played["bearer"] = None
+                card_played["crc8"] = 1
+                card_played["broadcast"] = False
 
-                # converts the message to bytes
-                message = json.dumps(message, indent=2).encode("utf-8")
+                # converts the card_played to bytes
+                card_played = json.dumps(card_played, indent=2).encode("utf-8")
                 send_message(
-                    listen_socket, send_socket, message, (next_node_address, send_port)
+                    listen_socket,
+                    send_socket,
+                    card_played,
+                    (next_node_address, send_port),
                 )
 
         # hop to the next player
