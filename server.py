@@ -67,7 +67,6 @@ class Server:
         # set the starting state
 
         while not players_queue.empty() and game.state != "GAME_OVER":
-            input("Press Enter to continue...")
             with self.lock:  # lock the token
                 current_conn = self.clients[self.token]
 
@@ -198,6 +197,9 @@ class Server:
                             player_bet["msg"]["content"],
                         )
 
+                        # update the game with the player's bet
+                        # this will be used to calculate the lifes of the players
+                        # at the end of the round
                         game.round.play_bet(player_bet, player.port)
 
                         if all(player.has_bet for player in game.players):
@@ -243,6 +245,7 @@ class Server:
                         message["crc8"] = 1
 
                         # converts the message to bytes
+                        message = json.dumps(message, indent=2).encode("utf-8")
                         send_message(
                             self.listen_socket,
                             self.send_socket,
@@ -252,7 +255,9 @@ class Server:
 
                         # receive the player's card
                         card_played = receive_message(
-                            self.listen_socket, self.send_socket, self.next_node_address
+                            self.listen_socket,
+                            self.send_socket,
+                            (self.next_node_address, self.send_port),
                         )
 
                         # extract the card from the message
@@ -279,16 +284,72 @@ class Server:
                             current_player.port,
                         )
 
-                        player = players_queue.get_nowait()
+                        # if all players have played their cards
+                        if len(game.round.cards) == PLAYERS:
+                            game.state = "CALCULATING"
+                            for player in game.players:
+                                players_queue.put_nowait(player)
+                            continue
 
+                        player = players_queue.get_nowait()
+                        print("==================PLAYING==================")
+                    case "CALCULATING":
+                        print("==================CALCULATING==================")
+                        print("Calculating winner")
+                        # calculate the winner of the round
+                        winner_player = game.round.calculate_winner_round()
+                        game.calculate_player_lifes()
+                        game.round.clean_round()
+                        # game.calculate_next_dealer()
+                        game.check_lifes()
+
+                        round_ending_info = {
+                            "winner": winner_player,
+                            "players": [
+                                {
+                                    "port": player.port,
+                                    "lifes": player.lifes,
+                                }
+                                for player in game.players
+                            ],
+                        }
+
+                        # send the winner to the players
+                        winner_msg = MESSAGE_TEMPLATE
+                        winner_msg["msg"]["type"] = "WINNER"
+                        winner_msg["msg"]["src"] = "server"
+                        winner_msg["msg"]["dst"] = ""
+                        winner_msg["msg"]["content"] = round_ending_info
+                        winner_msg["has_message"] = True
+                        winner_msg["bearer"] = self.token
+                        winner_msg["crc8"] = 1
+                        winner_msg["broadcast"] = True
+
+                        # converts the message to bytes
+                        winner_msg = json.dumps(winner_msg, indent=2).encode("utf-8")
+                        send_message(
+                            self.listen_socket,
+                            self.send_socket,
+                            winner_msg,
+                            (self.next_node_address, self.send_port),
+                        )
+
+                        if game.round.round_number == self.turns:
+                            game.state = "GAME_OVER"
+                            continue
+
+                        # if the players still have cards to play
+                        # go back to the PLAYING state
+                        if all(player.has_cards for player in game.players):
+                            game.state = "PLAYING"
+                            for player in game.players:
+                                players_queue.put_nowait(player)
+
+                        print("==================CALCULATING==================")
             # this passes the token to the next player
             with self.lock:
                 print("Passing the token to the next player")
                 self.token = (self.token + 1) % PLAYERS
-
-    # def broadcast(self, message):
-    #     for client in self.clients:
-    #         client.sendall(message.encode())
 
 
 if __name__ == "__main__":
