@@ -133,6 +133,27 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
 
     message = json.loads(message.decode("utf-8"))
 
+    if message["broadcast"]:
+        match message["msg"]["type"]:
+            case "BETTING":
+                print(
+                    "Player {} BET {}".format(
+                        message["msg"]["src"], message["msg"]["content"]
+                    )
+                )
+            case "WINNER":
+                print(
+                    "Player {} WON THE ROUND".format(
+                        message["msg"]["content"]["winner"]
+                    )
+                )
+                for player in message["msg"]["content"]["players"]:
+                    print(
+                        "Player {} has {} lifes".format(
+                            player["player"], player["lifes"]
+                        )
+                    )
+
     # check if the message is destined to the player
     # if not, send to the next node
     if message["msg"]["dst"] != player_id:
