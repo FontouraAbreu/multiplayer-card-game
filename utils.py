@@ -43,15 +43,15 @@ def send_message(listen_socket, send_socket, message: bytes, address):
     while the message is not an ACK message it will keep sending the message
     """
     # print("size of the filled message:", sys.getsizeof(message))
-    print("Sending message and waiting for ACK/NACK:", message)
-    print("Address:", address)
+    # print("Sending message and waiting for ACK/NACK:", message)
+    # print("Address:", address)
     try:
         send_socket.sendto(message, address)
     except socket.error as e:
         print("Error sending message:", e)
 
     # waits for ACK response
-    print("waiting for ACK")
+    # print("waiting for ACK")
     answer, addr = listen_socket.recvfrom(RECV_BUFFER)
     answer = json.loads(answer.decode("utf-8"))
     msg_type = answer["msg"]["type"]
@@ -69,7 +69,49 @@ def send_message(listen_socket, send_socket, message: bytes, address):
         answer = json.loads(answer.decode("utf-8"))
         msg_type = answer["msg"]["type"]
 
-    print("ACK received")
+    # print("ACK received")
+
+
+def send_broadcast_message(listen_socket, send_socket, message, address, players):
+    """
+    Sends a message that every player should receive and waits for an ACK/NACK response from each player
+    Atention: the message should not be Bytes, it should be a dictionary that will be converted to bytes
+    """
+
+    for player in players:
+        current_message = message.copy()
+        current_message["msg"]["dst"] = "M{}".format(player)
+        # print(
+        #     "Sending broadcast message and waiting for ACK/NACK to player {}: {}".format(
+        #         player, current_message
+        #     )
+        # )
+        current_message = json.dumps(current_message).encode("utf-8")
+        try:
+            send_socket.sendto(current_message, address)
+        except socket.error as e:
+            print("Error sending message:", e)
+
+        # waits for ACK response
+        # print("waiting for ACK")
+        answer, addr = listen_socket.recvfrom(RECV_BUFFER)
+        answer = json.loads(answer.decode("utf-8"))
+        msg_type = answer["msg"]["type"]
+        # keep sending the message until an ACK is received
+        while msg_type != "ACK":
+            # send the message again
+            try:
+                send_socket.sendto(current_message, address)
+            except Exception as e:
+                print("Error sending message:", e)
+                return
+
+            # receive the answer again
+            answer, addr = listen_socket.recvfrom(RECV_BUFFER)
+            answer = json.loads(answer.decode("utf-8"))
+            msg_type = answer["msg"]["type"]
+
+        # print("ACK received")
 
 
 def receive_message(listen_socket, send_socket, address):
@@ -85,7 +127,7 @@ def receive_message(listen_socket, send_socket, address):
     # check if the message crc8 is valid
     answer_crc8 = MESSAGE_TEMPLATE
     if message["crc8"] != 1:
-        print("CRC8 inválido, enviando NACK")
+        # print("CRC8 inválido, enviando NACK")
         # answer the message with a NACK
         answer_crc8["has_message"] = False
         answer_crc8["bearer"] = None
@@ -129,7 +171,7 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
     if not message:
         return None
 
-    print("Received message:", message)
+    # print("Received message:", message)
 
     message = json.loads(message.decode("utf-8"))
 
@@ -137,31 +179,31 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
         match message["msg"]["type"]:
             case "BETTING":
                 print(
-                    "Player {} BET {}".format(
+                    "Player {} apostou que faz {} rodada(s)!".format(
                         message["msg"]["src"], message["msg"]["content"]
                     )
                 )
-            case "WINNER":
-                print(
-                    "Player {} WON THE ROUND".format(
-                        message["msg"]["content"]["winner"]
-                    )
-                )
-                for player in message["msg"]["content"]["players"]:
-                    print(
-                        "Player {} has {} lifes".format(
-                            player["player"], player["lifes"]
-                        )
-                    )
+            # case "WINNER":
+            #     print(
+            #         "Player {} ganhou o round!".format(
+            #             message["msg"]["content"]["winner"]
+            #         )
+            #     )
+            #     for player in message["msg"]["content"]["players"]:
+            #         print(
+            #             "Player {} tem {} vida(s)".format(
+            #                 player["port"], player["lifes"]
+            #             )
+            #         )
 
     # check if the message is destined to the player
     # if not, send to the next node
     if message["msg"]["dst"] != player_id:
-        print("Message not destined to the player")
+        # print("Message not destined to the player")
         message = json.dumps(message, indent=2).encode("utf-8")
         try:
             send_socket.sendto(message, next_node)
-            print("Message sent to the next node: {}".format(next_node))
+            # print("Message sent to the next node: {}".format(next_node))
         except socket.error as e:
             print(f"Error sending message - {e}")
             return None
@@ -187,15 +229,15 @@ def send_ack_or_nack(sock, message, current_player_id, address):
 
     # check if the message crc8 is valid
     if message["crc8"] == 1:
-        print("CRC8 válido, enviando ACK")
+        # print("CRC8 válido, enviando ACK")
         # answer the message with a ACK
         ack_or_nack_answer["msg"]["type"] = "ACK"
     else:
-        print("CRC8 inválido, enviando NACK")
+        # print("CRC8 inválido, enviando NACK")
         # answer the message with a NACK
         ack_or_nack_answer["msg"]["type"] = "NACK"
 
-    print("Sending ACK/NACK message:", ack_or_nack_answer)
+    # print("Sending ACK/NACK message:", ack_or_nack_answer)
 
     # send the message to the next node
     try:

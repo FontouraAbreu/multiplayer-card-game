@@ -78,6 +78,7 @@ class Round:
 
         # Diminuir a aposta do jogador vencedor
         for bet in self.bets:
+            print(bet)
             if bet["player"] == winner_player:
                 bet["bet"] -= 1
                 break

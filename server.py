@@ -6,7 +6,13 @@ import json
 import time
 
 
-from utils import parse_server_args, calculate_crc8, send_message, receive_message
+from utils import (
+    parse_server_args,
+    calculate_crc8,
+    send_message,
+    receive_message,
+    send_broadcast_message,
+)
 from game import Game
 
 from config import (
@@ -103,9 +109,6 @@ class Server:
                                 }
                             )
 
-                        print("info that will be sent:", serializable_message)
-                        print("size of the clean message:")
-
                         # send to the player the cards he has
                         message = MESSAGE_TEMPLATE
                         message["msg"]["src"] = "server"
@@ -200,9 +203,10 @@ class Server:
                         # update the game with the player's bet
                         # this will be used to calculate the lifes of the players
                         # at the end of the round
-                        game.round.play_bet(player_bet, player.port)
+                        game.round.play_bet(player_bet["msg"]["content"], player.port)
 
                         if all(player.has_bet for player in game.players):
+                            self.token = (self.token + 1) % PLAYERS
                             game.state = "PLAYING"
                             for player in game.players:
                                 players_queue.put_nowait(player)
@@ -326,17 +330,17 @@ class Server:
                         winner_msg["broadcast"] = True
 
                         # converts the message to bytes
-                        winner_msg = json.dumps(winner_msg, indent=2).encode("utf-8")
-                        send_message(
+                        send_broadcast_message(
                             self.listen_socket,
                             self.send_socket,
                             winner_msg,
                             (self.next_node_address, self.send_port),
+                            self.clients,
                         )
 
-                        if game.round.round_number == self.turns:
-                            game.state = "GAME_OVER"
-                            continue
+                        # if game.round.round_number == self.turns:
+                        #     game.state = "GAME_OVER"
+                        #     continue
 
                         # if the players still have cards to play
                         # go back to the PLAYING state

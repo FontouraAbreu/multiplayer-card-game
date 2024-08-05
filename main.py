@@ -42,6 +42,7 @@ current_round_status = {
     "current_player_cards": [],
     "current_player_lifes": None,
     "current_player_bet": None,
+    "current_won_rounds": 0,
     "current_player_number": 1,
     "current_winning_card": None,
     "current_winning_player": None,
@@ -64,18 +65,18 @@ def main(args):
     send_port = node_config["send_port"]
     if player_id == PLAYERS:
         next_node_address = NETWORK_CONNECTIONS["M0"]["address"]
-        print("M0")
     else:
         next_node_address = NETWORK_CONNECTIONS[f"M{player_id + 1}"]["address"]
-        print(f"M{player_id + 1}")
 
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     listen_socket.bind((listen_address, listen_port))
     # listen_socket.listen(1)
-    print(f"Listening on {listen_address}:{listen_port}")
-    print(f"Will try to connect to {next_node_address}:{send_port}")
-    print(f"Waiting for connection... Press Enter when all players are listening")
+    # print(f"Listening on {listen_address}:{listen_port}")
+    # print(f"Will try to connect to {next_node_address}:{send_port}")
+    print(
+        f"Esperando pelas conexões... Aperte Enter quando todos os jogadores estiverem conectados"
+    )
     input()
 
     # configuring send socket
@@ -97,7 +98,7 @@ def main(args):
             (next_node_address, send_port),
         )
         if message is None:
-            print("Message is None")
+            # print("Message is None")
             message = MESSAGE_TEMPLATE
             continue
 
@@ -116,13 +117,13 @@ def main(args):
             (next_node_address, send_port),
         )
         if sent is None:
-            print("Message is sent is None")
+            # print("Message sent is None")
             message = MESSAGE_TEMPLATE
             continue
 
         msg_type = message["msg"]["type"]
 
-        print(f"Received message from server: {message}")
+        # print(f"Received message from server: {message}")
 
         match msg_type:
             case "DEALING":
@@ -137,7 +138,7 @@ def main(args):
                 # save the round number in the local round status
                 current_round_status["round_number"] = message_content["round_num"]
 
-                print(f"A manilha {message_content['shackle']}")
+                print(f"A manilha é {message_content['shackle']}")
                 # save the shackle in the local round status
                 current_round_status["shackle"] = message_content["shackle"]
 
@@ -181,7 +182,7 @@ def main(args):
                 """
                 In this state, the game will show the player's lifes and asks for the player's bet
                 """
-
+                print("APOSTAS:")
                 # print the player's cards
                 print("\nSuas cartas são:")
                 for card in current_round_status["current_player_cards"]:
@@ -249,6 +250,8 @@ def main(args):
                         f"O jogador {current_round_status['current_winning_player']} está ganhando a rodada com a carta {current_round_status['current_winning_card']}"
                     )
 
+                # print the current shackle
+                print(f"A manilha é {current_round_status['shackle']}")
                 # print the players lifes with hearts
                 print("Suas vidas são:")
                 for _ in range(current_round_status["current_player_lifes"]):
@@ -256,14 +259,16 @@ def main(args):
 
                 # print the player's cards
                 print("\nSuas cartas são:")
-                for card in current_round_status["current_player_cards"]:
-                    print("Carta: " + card)
-
+                for i, card in enumerate(current_round_status["current_player_cards"]):
+                    print(f"{i} - {card}")
                 # ask the player for the card
                 print("Qual carta você joga?")
                 card_num = input()
-
-                # updates the current winning status
+                while int(card_num) < 0 or int(card_num) > len(
+                    current_round_status["current_player_cards"]
+                ):
+                    print("Carta inválida, tente novamente")
+                    card_num = input()
 
                 # Get card from player's hand
                 card = current_round_status["current_player_cards"].pop(
@@ -287,6 +292,25 @@ def main(args):
                     card_played,
                     (next_node_address, send_port),
                 )
+            case "WINNER":
+                """
+                In this state, the game will show the winner of the round and some information about the players
+                """
+
+                # print the winner of the round
+                print(
+                    f"O jogador {message['msg']['content']['winner']} ganhou a rodada"
+                )
+                if message["msg"]["content"]["winner"] == player_id:
+                    print("Parabéns! Você ganhou a rodada")
+                    current_round_status["current_won_rounds"] += 1
+
+                # print the players lifes with hearts
+                print("Vidas dos jogadores:")
+                for player in message["msg"]["content"]["players"]:
+                    print(f"O jogador {player['port']} tem {player['lifes']} vidas")
+                    if player["port"] == player_id:
+                        current_round_status["current_player_lifes"] = player["lifes"]
 
         # hop to the next player
         current_round_status["current_player_number"] += (
