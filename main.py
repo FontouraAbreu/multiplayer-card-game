@@ -202,6 +202,12 @@ def main(args):
             # ask the player for the bet
             print("Quantas rodadas você faz?")
             bet = int(input())
+            # check if the bet is a number
+            while bet != int(bet):
+                print("Digite apenas o número de rodadas que você faz!")
+                print("Faça uma nova aposta:")
+                bet = int(input())
+
             # retrieve the sum of the bets
             sum_of_bets = message["msg"]["content"] + bet
 
@@ -245,6 +251,7 @@ def main(args):
             """
             In this state, the game will show the player's lifes and asks for the player's card
             """
+            print("=----= JOGANDO =----=")
 
             # clear the screen
             # print round status
@@ -334,9 +341,14 @@ def main(args):
             # print the players bets
             print("Situação das apostas:")
             for bet in message["msg"]["content"]["bets"]:
-                print(
-                    f"Jogador {bet['player']} apostou {bet['bet']} rodada(s) e ganhou {bet['turns_won']}"
-                )
+                if bet["player"] == player_id:
+                    print(
+                        f"Você apostou {bet['bet']} rodada(s) e ganhou {bet['turns_won']}"
+                    )
+                else:
+                    print(
+                        f"Jogador {bet['player']} apostou {bet['bet']} rodada(s) e ganhou {bet['turns_won']}"
+                    )
                 # if bet["player"] == message["msg"]["content"]["winner"]:
                 #     continue
 
@@ -366,11 +378,11 @@ def main(args):
             """
             In this state, the game will show the winner of the round and some information about the players
             """
-            print("=----= FIM DO TURNO =----=")
+            print("=----= FIM DA RODADA =----=")
 
             # print the winner of the round
             if message["msg"]["content"]["winner"] == player_id:
-                print("Parabéns! Você ganhou o turno")
+                print("Parabéns! Você ganhou a rodada")
                 current_round_status["current_won_rounds"] += 1
             else:
                 print(
@@ -380,10 +392,6 @@ def main(args):
             # print the players lifes with hearts
             print("Vidas dos jogadores:")
             for player in message["msg"]["content"]["players"]:
-                # ignore the current player
-                if player["port"] == player_id:
-                    continue
-
                 lifes_emoji = "❤️  " * player["lifes"]
                 print(f"Jogador {player['port']} - {lifes_emoji}")
                 if player["port"] == player_id:
@@ -393,98 +401,6 @@ def main(args):
         current_round_status["current_player_number"] += (
             1 if current_player < PLAYERS else 1
         )
-
-        # if game.state == "BETTING":
-        #     if queue.empty():
-        #         game.state = "PLAYING"
-        #         for player in game.players:
-        #             queue.put_nowait(player)
-        #         continue
-
-        #     player = queue.get_nowait()
-        #     print(
-        #         f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:"
-        #     )
-        #     print(player.cards)
-
-        #     # Get the player's bet
-        #     print(f"{player.name_port()} quantas rodadas você faz?")
-        #     bet = int(input())
-
-        #     # Sum of bets cannot be equal to the number of rounds
-        #     if (
-        #         queue.qsize() == 0
-        #         and sum([bet["bet"] for bet in game.round.bets])
-        #         == game.round.cards_per_player
-        #     ):
-        #         print("A soma das apostas deve ser diferente do número de rodadas")
-        #         print("Faça uma nova aposta:")
-        #         bet = int(input())
-
-        #     game.round.play_bet(bet, player.port)
-
-        # elif game.state == "PLAYING":
-        #     print(f" DEBUG Apostas: {game.round.bets}")
-
-        #     for _ in range(game.cards_per_player):
-        #         if any(player.cards for player in game.players):
-        #             while not queue.empty():
-        #                 player = queue.get_nowait()
-
-        #                 print(
-        #                     f"Sua vez, {player.name_port()}, você tem {player.lifes} vidas e essas são suas cartas:"
-        #                 )
-        #                 print(player.cards)
-
-        #                 # Get the player's card
-        #                 print(f"{player.name_port()} qual carta você joga?")
-        #                 card_num = int(input())
-
-        #                 # Get card from player's hand
-        #                 card = player.cards.pop(card_num - 1)
-
-        #                 print(f"Player {player.name_port()} jogou a carta {card}")
-
-        #                 card_with_suit = card.rank + card.suit
-        #                 game.round.play_card(
-        #                     card_with_suit, card.value, player.port
-        #                 )
-
-        #             winner = game.round.calculate_winner_round()
-        #             print(f"Vencedor da rodada Jogador {winner}")
-        #             game.put_players_queue(queue)
-        #             game.calculate_player_lifes()
-
-        #         else:
-        #             print("Acabou a rodada", game.state)
-        #             game.calculate_next_dealer()
-        #             game.calculate_player_lifes()
-        #             game.round.clean_round()
-        #             game.state = "DEALING"
-        #             break
-
-        #     # Check if all cards have been played
-        #     if all(len(player.cards) == 0 for player in game.players):
-        #         game.round.clean_round()
-        #         alive_count = sum(1 for player in game.players if player.is_alive)
-
-        #         if alive_count == 1:
-        #             for player in game.players:
-        #                 if player.is_alive:
-        #                     print(f"O jogador {player.port} ganhou!")
-        #                     game.state = "GAME_OVER"
-        #                     return
-
-        #         if game.round.round_number <= game.turns:
-        #             print("Todas as cartas foram jogadas. Iniciando nova rodada.")
-        #             game.state = "DEALING"
-        #         else:
-        #             game.state = "GAME_OVER"
-
-        # elif game.state == "GAME_OVER":
-        #     print("Game Over")
-        #     print(f"Vidas dos jogadores: {game.players}")
-        #     break
 
 
 if __name__ == "__main__":

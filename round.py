@@ -30,7 +30,18 @@ class Round:
         player: jogador
         Atualiza a lista de apostas
         """
-        self.bets.append({"bet": bet, "player": player})
+        self.bets.append({"bet": bet, "player": player, "turns_won": 0})
+        return None
+
+    def win_turn(self, player):
+        """
+        Função para incrementar o número de turnos ganhos
+        player: jogador
+        """
+        for bet in self.bets:
+            if bet["player"] == player:
+                bet["turns_won"] += 1
+                break
         return None
 
     def play_card(self, card, value, player):

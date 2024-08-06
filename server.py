@@ -348,16 +348,16 @@ class Server:
                         current_player.port,
                     )
 
-                    # if every player have played
-                    if all(player.has_played for player in game.players):
-                        game.state = "TURN_END"
+                    # if all players have zero cards
+                    if all(not player.cards for player in game.players):
+                        game.state = "CALCULATING"
                         for player in game.players:
                             players_queue.put_nowait(player)
                         continue
 
-                    # if all players have played their cards
-                    if len(game.round.cards) == PLAYERS:
-                        game.state = "CALCULATING"
+                    # if every player have played
+                    if all(player.has_played for player in game.players):
+                        game.state = "TURN_END"
                         for player in game.players:
                             players_queue.put_nowait(player)
                         continue
@@ -380,6 +380,8 @@ class Server:
                         if player.port == winner_player:
                             player.bets_won += 1
                             bets_won = player.bets_won
+                    
+                    game.round.win_turn(winner_player)
 
                     bets = []
                     for player in game.players:
@@ -395,7 +397,6 @@ class Server:
                     for player in game.players:
                         player.has_played = False
 
-                    print(game.round.bets)
                     turn_ending_info = {
                         "winner": winner_player,
                         "bets": bets,
@@ -421,7 +422,8 @@ class Server:
                             (self.next_node_address, self.send_port),
                         )
 
-                        # extract players bets status
+                        # change to the next state
+                        game.state = "PLAYING"
 
                 elif game.state == "CALCULATING":
                     print("==================CALCULATING==================")
@@ -468,12 +470,7 @@ class Server:
                     #     game.state = "GAME_OVER"
                     #     continue
 
-                    # if the players still have cards to play
-                    # go back to the PLAYING state
-                    if all(player.has_cards for player in game.players):
-                        game.state = "PLAYING"
-                        for player in game.players:
-                            players_queue.put_nowait(player)
+                    game.state = "DEALING"
 
                     print("==================CALCULATING==================")
 
