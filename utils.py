@@ -174,25 +174,24 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
 
     if message["broadcast"]:
         print("Message not destined to the player:", message)
-        match message["msg"]["type"]:
-            case "BETTING":
-                print(
-                    "Player {} apostou que faz {} rodada(s)!".format(
-                        message["msg"]["src"], message["msg"]["content"]
-                    )
+        if message["msg"]["type"] == "BETTING":
+            print(
+                "Player {} apostou que faz {} rodada(s)!".format(
+                    message["msg"]["src"], message["msg"]["content"]
                 )
-            # case "WINNER":
-            #     print(
-            #         "Player {} ganhou o round!".format(
-            #             message["msg"]["content"]["winner"]
-            #         )
-            #     )
-            #     for player in message["msg"]["content"]["players"]:
-            #         print(
-            #             "Player {} tem {} vida(s)".format(
-            #                 player["port"], player["lifes"]
-            #             )
-            #         )
+            )
+        # elif message["msg"]["type"] == "WINNER":
+        #     print(
+        #         "Player {} ganhou o round!".format(
+        #             message["msg"]["content"]["winner"]
+        #         )
+        #     )
+        #     for player in message["msg"]["content"]["players"]:
+        #         print(
+        #             "Player {} tem {} vida(s)".format(
+        #                 player["port"], player["lifes"]
+        #             )
+        #         )
 
     # check if the message is destined to the player
     # if not, send to the next node
