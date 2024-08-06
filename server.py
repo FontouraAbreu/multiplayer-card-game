@@ -335,7 +335,6 @@ class Server:
                             self.send_socket,
                             winner_msg,
                             (self.next_node_address, self.send_port),
-                            self.clients,
                         )
 
                         # if game.round.round_number == self.turns:

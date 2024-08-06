@@ -72,44 +72,41 @@ def send_message(listen_socket, send_socket, message: bytes, address):
     # print("ACK received")
 
 
-def send_broadcast_message(listen_socket, send_socket, message, address, players):
+def send_broadcast_message(listen_socket, send_socket, message, address):
     """
     Sends a message that every player should receive and waits for an ACK/NACK response from each player
     Atention: the message should not be Bytes, it should be a dictionary that will be converted to bytes
     """
 
-    for player in players:
-        current_message = message.copy()
-        current_message["msg"]["dst"] = "M{}".format(player)
-        # print(
-        #     "Sending broadcast message and waiting for ACK/NACK to player {}: {}".format(
-        #         player, current_message
-        #     )
-        # )
-        current_message = json.dumps(current_message).encode("utf-8")
+    current_message = message.copy()
+    current_message["msg"]["dst"] = current_message["msg"]["src"]
+    print(
+        "Sending broadcast message and waiting for ACK/NACK: {}".format(current_message)
+    )
+    current_message = json.dumps(current_message).encode("utf-8")
+    try:
+        send_socket.sendto(current_message, address)
+    except socket.error as e:
+        print("Error sending message:", e)
+
+    # waits for ACK response
+    # print("waiting for ACK")
+    answer, addr = listen_socket.recvfrom(RECV_BUFFER)
+    answer = json.loads(answer.decode("utf-8"))
+    msg_type = answer["msg"]["type"]
+    # keep sending the message until an ACK is received
+    while msg_type != "ACK":
+        # send the message again
         try:
             send_socket.sendto(current_message, address)
-        except socket.error as e:
+        except Exception as e:
             print("Error sending message:", e)
+            return
 
-        # waits for ACK response
-        # print("waiting for ACK")
+        # receive the answer again
         answer, addr = listen_socket.recvfrom(RECV_BUFFER)
         answer = json.loads(answer.decode("utf-8"))
         msg_type = answer["msg"]["type"]
-        # keep sending the message until an ACK is received
-        while msg_type != "ACK":
-            # send the message again
-            try:
-                send_socket.sendto(current_message, address)
-            except Exception as e:
-                print("Error sending message:", e)
-                return
-
-            # receive the answer again
-            answer, addr = listen_socket.recvfrom(RECV_BUFFER)
-            answer = json.loads(answer.decode("utf-8"))
-            msg_type = answer["msg"]["type"]
 
         # print("ACK received")
 
@@ -175,7 +172,8 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
 
     message = json.loads(message.decode("utf-8"))
 
-    if message["broadcast"]:
+    if message["broadcast"] and message["msg"]["dst"] != player_id:
+        print("Message not destined to the player:", message)
         match message["msg"]["type"]:
             case "BETTING":
                 print(

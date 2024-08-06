@@ -16,6 +16,7 @@ from utils import (
     receive_message,
     receive_message_no_ack,
     send_ack_or_nack,
+    send_broadcast_message,
 )
 
 from config import (
@@ -182,12 +183,7 @@ def main(args):
                 """
                 In this state, the game will show the player's lifes and asks for the player's bet
                 """
-                print("APOSTAS:")
-                # print the player's cards
-                print("\nSuas cartas são:")
-                for card in current_round_status["current_player_cards"]:
-                    print(card)
-
+                print("Hora de apostar:")
                 # ask the player for the bet
                 print("Quantas rodadas você faz?")
                 bet = int(input())
@@ -218,11 +214,7 @@ def main(args):
                 current_player_bet["crc8"] = 1
                 current_player_bet["broadcast"] = True
 
-                # converts the message to bytes
-                current_player_bet = json.dumps(current_player_bet, indent=2).encode(
-                    "utf-8"
-                )
-                send_message(
+                send_broadcast_message(
                     listen_socket,
                     send_socket,
                     current_player_bet,
@@ -233,6 +225,9 @@ def main(args):
                 """
                 In this state, the game will show the player's lifes and asks for the player's card
                 """
+
+                # clear the screen
+                # print("\033[H\033[J")
 
                 # if there is a message content
                 # extract the current round winning status
@@ -257,10 +252,10 @@ def main(args):
                 for _ in range(current_round_status["current_player_lifes"]):
                     print("❤️", end="  ")
 
-                # print the player's cards
                 print("\nSuas cartas são:")
                 for i, card in enumerate(current_round_status["current_player_cards"]):
                     print(f"{i} - {card}")
+
                 # ask the player for the card
                 print("Qual carta você joga?")
                 card_num = input()
