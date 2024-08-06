@@ -78,6 +78,21 @@ class Game:
         # retorna a quantidade de jogadores vivos
         return sum(1 for player in self.players if player.is_alive)
 
+    def update_players_bets(self, winner_player):
+        """
+        Função para atualizar as apostas dos jogadores baseado
+        """
+        for player in self.players:
+            for bet in self.round.bets:
+                if bet["player"] == player.port:
+                    if bet["bet"] != 0:
+                        player.lifes -= abs(bet["bet"])
+                    break
+
+        for player in self.players:
+            if player.lifes <= 0:
+                player.is_alive = False
+
     def calculate_player_lifes(self):
         """
         Função para calcular a quantidade de vidas dos jogadores

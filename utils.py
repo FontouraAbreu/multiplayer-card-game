@@ -172,7 +172,7 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
 
     message = json.loads(message.decode("utf-8"))
 
-    if message["broadcast"] and message["msg"]["dst"] != player_id:
+    if message["broadcast"]:
         print("Message not destined to the player:", message)
         match message["msg"]["type"]:
             case "BETTING":

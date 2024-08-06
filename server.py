@@ -12,6 +12,7 @@ from utils import (
     send_message,
     receive_message,
     send_broadcast_message,
+    receive_message_no_ack,
 )
 from game import Game
 
@@ -39,6 +40,7 @@ class Server:
         self.send_socket = None
         self.next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
         self.send_port = NETWORK_CONNECTIONS["M0"]["send_port"]
+        self.current_turn = {}
 
     def start(self):
         config = NETWORK_CONNECTIONS["M0"]
@@ -187,6 +189,33 @@ class Server:
                             (self.next_node_address, self.send_port),
                         )
 
+                        # send the player's bet to each player
+                        for player in game.players:
+                            # if the player is the current player, skip
+                            if player.port == current_player.port:
+                                continue
+
+                            message = MESSAGE_TEMPLATE
+                            message["msg"]["type"] = "PLAYER_BET"
+                            message["msg"]["src"] = "server"
+                            message["msg"]["dst"] = f"M{player.port}"
+                            message["msg"]["content"] = {
+                                "player": current_player.port,
+                                "bet": player_bet["msg"]["content"],
+                            }
+                            message["has_message"] = True
+                            message["bearer"] = self.token
+                            message["crc8"] = 1
+
+                            # converts the message to bytes
+                            message = json.dumps(message, indent=2).encode("utf-8")
+                            send_message(
+                                self.listen_socket,
+                                self.send_socket,
+                                message,
+                                (self.next_node_address, self.send_port),
+                            )
+
                         if player_bet == None:
                             continue
                         else:
@@ -266,8 +295,10 @@ class Server:
 
                         # extract the card from the message
                         card_played = card_played["msg"]["content"]
-                        # trasnform the card into a dict with suit and rank
+                        # transform the card into a dict with suit and rank
                         card_played = json.loads(card_played)
+                        current_player.has_played = True
+
                         """
                         The card sent by the player is the index of the card in the player's hand
                         """
@@ -282,11 +313,46 @@ class Server:
                             current_played_card.rank + current_played_card.suit
                         )
 
+                        print("sending card played to other players")
+                        # send the card played by the player to the other players
+                        for player in game.players:
+                            if player.port == current_player.port:
+                                continue
+
+                            message = MESSAGE_TEMPLATE
+                            message["msg"]["type"] = "PLAYER_CARD"
+                            message["msg"]["src"] = "server"
+                            message["msg"]["dst"] = f"M{player.port}"
+                            message["msg"]["content"] = (
+                                "\tO jogador {} jogou a carta {}\n".format(
+                                    current_player.port, card_with_suit
+                                )
+                            )
+                            message["has_message"] = True
+                            message["bearer"] = self.token
+                            message["crc8"] = 1
+
+                            # converts the message to bytes
+                            message = json.dumps(message, indent=2).encode("utf-8")
+                            send_message(
+                                self.listen_socket,
+                                self.send_socket,
+                                message,
+                                (self.next_node_address, self.send_port),
+                            )
+
                         game.round.play_card(
                             card_with_suit,
                             current_played_card.value,
                             current_player.port,
                         )
+
+                        # if every player have played
+                        if all(player.has_played for player in game.players):
+                            game.state = "TURN_END"
+                            for player in game.players:
+                                players_queue.put_nowait(player)
+                            continue
 
                         # if all players have played their cards
                         if len(game.round.cards) == PLAYERS:
@@ -297,6 +363,61 @@ class Server:
 
                         player = players_queue.get_nowait()
                         print("==================PLAYING==================")
+                    case "TURN_END":
+                        """
+                        In this state the winner of the turn is calculated,
+                        the players turns won are updated,
+                        every player is notified of the winner and
+                        every player is notified of the current bet status
+                        """
+                        print("==================TURN_END==================")
+                        # calculate the winner of the turn
+                        winner_player = game.round.calculate_winner_round()
+
+                        print("Winner of the turn:", winner_player)
+                        for player in game.players:
+                            if player.port == winner_player:
+                                player.bets_won += 1
+                                bets_won = player.bets_won
+
+                        game.round.clean_turn()
+                        for player in game.players:
+                            player.has_played = False
+
+                        turn_ending_info = {
+                            "winner": winner_player,
+                            "bets": [
+                                {
+                                    "player": bet["player"],
+                                    "bet": bet["bet"],
+                                    "turns_won": bets_won,
+                                }
+                                for bet in game.round.bets
+                            ],
+                        }
+
+                        # send the winner to each player
+                        for player in game.players:
+                            message = MESSAGE_TEMPLATE
+                            message["msg"]["type"] = "TURN_WINNER"
+                            message["msg"]["src"] = "server"
+                            message["msg"]["dst"] = f"M{player.port}"
+                            message["msg"]["content"] = turn_ending_info
+                            message["has_message"] = True
+                            message["bearer"] = self.token
+                            message["crc8"] = 1
+
+                            # converts the message to bytes
+                            message = json.dumps(message, indent=2).encode("utf-8")
+                            send_message(
+                                self.listen_socket,
+                                self.send_socket,
+                                message,
+                                (self.next_node_address, self.send_port),
+                            )
+
+                            # extract players bets status
+
                     case "CALCULATING":
                         print("==================CALCULATING==================")
                         print("Calculating winner")
@@ -318,24 +439,25 @@ class Server:
                             ],
                         }
 
-                        # send the winner to the players
-                        winner_msg = MESSAGE_TEMPLATE
-                        winner_msg["msg"]["type"] = "WINNER"
-                        winner_msg["msg"]["src"] = "server"
-                        winner_msg["msg"]["dst"] = ""
-                        winner_msg["msg"]["content"] = round_ending_info
-                        winner_msg["has_message"] = True
-                        winner_msg["bearer"] = self.token
-                        winner_msg["crc8"] = 1
-                        winner_msg["broadcast"] = True
+                        # send the winner to each player
+                        for player in game.players:
+                            message = MESSAGE_TEMPLATE
+                            message["msg"]["type"] = "WINNER"
+                            message["msg"]["src"] = "server"
+                            message["msg"]["dst"] = f"M{player.port}"
+                            message["msg"]["content"] = round_ending_info
+                            message["has_message"] = True
+                            message["bearer"] = self.token
+                            message["crc8"] = 1
 
-                        # converts the message to bytes
-                        send_broadcast_message(
-                            self.listen_socket,
-                            self.send_socket,
-                            winner_msg,
-                            (self.next_node_address, self.send_port),
-                        )
+                            # converts the message to bytes
+                            message = json.dumps(message, indent=2).encode("utf-8")
+                            send_message(
+                                self.listen_socket,
+                                self.send_socket,
+                                message,
+                                (self.next_node_address, self.send_port),
+                            )
 
                         # if game.round.round_number == self.turns:
                         #     game.state = "GAME_OVER"

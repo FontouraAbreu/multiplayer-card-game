@@ -48,6 +48,7 @@ current_round_status = {
     "current_winning_card": None,
     "current_winning_player": None,
     "current_winning_player_lives": 0,
+    "current_players_bets": [],
 }
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
 
@@ -72,9 +73,7 @@ def main(args):
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     listen_socket.bind((listen_address, listen_port))
-    # listen_socket.listen(1)
-    # print(f"Listening on {listen_address}:{listen_port}")
-    # print(f"Will try to connect to {next_node_address}:{send_port}")
+
     print(
         f"Esperando pelas conexões... Aperte Enter quando todos os jogadores estiverem conectados"
     )
@@ -120,6 +119,20 @@ def main(args):
         if sent is None:
             # print("Message sent is None")
             message = MESSAGE_TEMPLATE
+            continue
+
+        # if the message is only the player's bet
+        if message["msg"]["type"] == "PLAYER_BET":
+            current_round_status["current_players_bets"].append(
+                {
+                    "player": message["msg"]["content"]["player"],
+                    "bet": message["msg"]["content"]["bet"],
+                }
+            )
+            continue
+
+        if message["msg"]["type"] == "PLAYER_CARD":
+            print(message["msg"]["content"])
             continue
 
         msg_type = message["msg"]["type"]
@@ -208,13 +221,18 @@ def main(args):
                 # Send the player's bet
                 current_player_bet = MESSAGE_TEMPLATE
                 current_player_bet["msg"]["type"] = "BETTING"
+                current_player_bet["msg"]["src"] = f"M{player_id}"
+                current_player_bet["msg"]["dst"] = "server"
                 current_player_bet["msg"]["content"] = bet
                 current_player_bet["has_message"] = True
                 current_player_bet["bearer"] = None
                 current_player_bet["crc8"] = 1
-                current_player_bet["broadcast"] = True
 
-                send_broadcast_message(
+                # send the current player bet to the server first
+                current_player_bet = json.dumps(current_player_bet, indent=2).encode(
+                    "utf-8"
+                )
+                send_message(
                     listen_socket,
                     send_socket,
                     current_player_bet,
@@ -227,7 +245,16 @@ def main(args):
                 """
 
                 # clear the screen
-                # print("\033[H\033[J")
+                # print round status
+                print("\033[H\033[J")
+                print(f"=----= Rodada {current_round_status['round_number']} =----=")
+                if len(current_round_status["current_players_bets"]) > 0:
+                    print("")
+                    print("Apostas:")
+                    for bet in current_round_status["current_players_bets"]:
+                        print(
+                            f"\tJogador {bet['player']} Apostou {bet['bet']} rodada(s)!\n"
+                        )
 
                 # if there is a message content
                 # extract the current round winning status
@@ -247,10 +274,13 @@ def main(args):
 
                 # print the current shackle
                 print(f"A manilha é {current_round_status['shackle']}")
+                print("")
+
                 # print the players lifes with hearts
                 print("Suas vidas são:")
                 for _ in range(current_round_status["current_player_lifes"]):
                     print("❤️", end="  ")
+                print("")
 
                 print("\nSuas cartas são:")
                 for i, card in enumerate(current_round_status["current_player_cards"]):
@@ -287,23 +317,53 @@ def main(args):
                     card_played,
                     (next_node_address, send_port),
                 )
+
+            case "TURN_WINNER":
+                """
+                In this state, the game will show the winner of the round and some information about the players
+                """
+                print("=----= FIM DO TURNO =----=")
+
+                # print the winner of the round
+                if message["msg"]["content"]["winner"] == player_id:
+                    print("Parabéns! Você ganhou o turno")
+                    current_round_status["current_won_rounds"] += 1
+                else:
+                    print(
+                        f"O jogador {message['msg']['content']['winner']} ganhou o turno"
+                    )
+
+                # print the players bets
+                print("Situação das apostas:")
+                for bet in message["msg"]["content"]["bets"]:
+                    print(
+                        f"Jogador {bet['player']} apostou {bet['bet']} turno e ganhou {bet['turns_won']} turno"
+                    )
+
             case "WINNER":
                 """
                 In this state, the game will show the winner of the round and some information about the players
                 """
+                print("=----= FIM DO TURNO =----=")
 
                 # print the winner of the round
-                print(
-                    f"O jogador {message['msg']['content']['winner']} ganhou a rodada"
-                )
                 if message["msg"]["content"]["winner"] == player_id:
-                    print("Parabéns! Você ganhou a rodada")
+                    print("Parabéns! Você ganhou o turno")
                     current_round_status["current_won_rounds"] += 1
+                else:
+                    print(
+                        f"O jogador {message['msg']['content']['winner']} ganhou a rodada"
+                    )
 
                 # print the players lifes with hearts
                 print("Vidas dos jogadores:")
                 for player in message["msg"]["content"]["players"]:
-                    print(f"O jogador {player['port']} tem {player['lifes']} vidas")
+                    # ignore the current player
+                    if player["port"] == player_id:
+                        continue
+
+                    lifes_emoji = "❤️  " * player["lifes"]
+                    print(f"Jogador {player['port']} - {lifes_emoji}")
                     if player["port"] == player_id:
                         current_round_status["current_player_lifes"] = player["lifes"]
 

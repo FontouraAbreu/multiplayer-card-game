@@ -51,6 +51,13 @@ class Round:
         """
         return self.deck.deal(self.num_players, self.cards_per_player)
 
+    def clean_turn(self):
+        """
+        Função para limpar o turno
+        Limpa a lista de cartas
+        """
+        self.cards = []
+
     def clean_round(self):
         """
         Função para limpar a rodada
@@ -76,12 +83,11 @@ class Round:
         max_card = max(self.cards, key=lambda x: x["value"])
         winner_player = max_card["player"]
 
-        # Diminuir a aposta do jogador vencedor
-        for bet in self.bets:
-            print(bet)
-            if bet["player"] == winner_player:
-                bet["bet"] -= 1
-                break
+        # # Diminuir a aposta do jogador vencedor
+        # for bet in self.bets:
+        #     if bet["player"] == winner_player:
+        #         bet["bet"] -= 1
+        #         break
 
         # Vencedor da rodada
         return winner_player
