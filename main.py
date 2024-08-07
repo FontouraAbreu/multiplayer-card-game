@@ -79,6 +79,8 @@ def main(args):
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     listen_socket.bind((listen_address, listen_port))
 
+    print("ouvindo em", listen_address, listen_port)
+
     print("Esperando os jogadores se conectarem e o jogo começar...")
     print(
         f"Esperando pelas conexões... Aperte Enter quando todos os jogadores estiverem conectados"
@@ -87,6 +89,8 @@ def main(args):
 
     # configuring send socket
     send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    print("enviando em ", next_node_address, send_port)
 
     message = MESSAGE_TEMPLATE
 
