@@ -80,10 +80,10 @@ def main(args):
     listen_socket.bind((listen_address, listen_port))
 
     print("Esperando os jogadores se conectarem e o jogo começar...")
-    # print(
-    #     f"Esperando pelas conexões... Aperte Enter quando todos os jogadores estiverem conectados"
-    # )
-    # input()
+    print(
+        f"Esperando pelas conexões... Aperte Enter quando todos os jogadores estiverem conectados"
+    )
+    input()
 
     # configuring send socket
     send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
