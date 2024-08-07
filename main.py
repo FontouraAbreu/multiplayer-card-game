@@ -78,9 +78,9 @@ def main(args):
 
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen_socket.bind((listen_address, listen_port))
+    listen_socket.bind((listen_node, listen_port))
 
-    print("ouvindo em", listen_address, listen_port)
+    print("ouvindo em", listen_node, listen_port)
 
     print("Esperando os jogadores se conectarem e o jogo começar...")
     print(
