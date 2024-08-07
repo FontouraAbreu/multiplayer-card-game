@@ -33,6 +33,7 @@ class Server:
         self.cards_per_player = cards_per_player
         self.turns = turns
         self.clients = [i for i in range(1, PLAYERS + 1)]
+        print("Clients:", self.clients)
         self.lock = threading.Lock()
         self.token = None
         self.current_player = 0
@@ -41,6 +42,7 @@ class Server:
         self.next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
         self.send_port = NETWORK_CONNECTIONS["M0"]["send_port"]
         self.current_turn = {}
+        self.game_winners = []
 
     def start(self):
         config = NETWORK_CONNECTIONS["M0"]
@@ -81,8 +83,6 @@ class Server:
                 print("Current player:", current_conn)
 
                 if game.state == "DEALING":
-                    # individual lifes
-
                     print("==================DEALING==================")
                     current_player = game.players[self.token]
                     current_player.has_bet = False
@@ -298,6 +298,9 @@ class Server:
 
                     # extract the card from the message
                     card_played = card_played["msg"]["content"]
+                    print(
+                        "Card played by player", current_player.port, ":", card_played
+                    )
                     # transform the card into a dict with suit and rank
                     card_played = json.loads(card_played)
                     current_player.has_played = True
@@ -317,18 +320,17 @@ class Server:
                     print("sending card played to other players")
                     # send the card played by the player to the other players
                     for player in game.players:
+                        content = "\tO jogador {} jogou a carta {}".format(
+                            current_player.port, card_with_suit
+                        )
                         if player.port == current_player.port:
-                            continue
+                            content = "\tVocê jogou a carta {}".format(card_with_suit)
 
                         message = MESSAGE_TEMPLATE
                         message["msg"]["type"] = "PLAYER_CARD"
                         message["msg"]["src"] = "server"
                         message["msg"]["dst"] = f"M{player.port}"
-                        message["msg"]["content"] = (
-                            "\tO jogador {} jogou a carta {}\n".format(
-                                current_player.port, card_with_suit
-                            )
-                        )
+                        message["msg"]["content"] = content
                         message["has_message"] = True
                         message["bearer"] = self.token
                         message["crc8"] = 1
@@ -347,13 +349,6 @@ class Server:
                         current_played_card.value,
                         current_player.port,
                     )
-
-                    # if all players have zero cards
-                    if all(not player.cards for player in game.players):
-                        game.state = "CALCULATING"
-                        for player in game.players:
-                            players_queue.put_nowait(player)
-                        continue
 
                     # if every player have played
                     if all(player.has_played for player in game.players):
@@ -380,7 +375,7 @@ class Server:
                         if player.port == winner_player:
                             player.bets_won += 1
                             bets_won = player.bets_won
-                    
+
                     game.round.win_turn(winner_player)
 
                     bets = []
@@ -422,14 +417,20 @@ class Server:
                             (self.next_node_address, self.send_port),
                         )
 
-                        # change to the next state
-                        game.state = "PLAYING"
+                    # if all players have zero cards
+                    if all(not player.cards for player in game.players):
+                        game.state = "CALCULATING"
+                        for player in game.players:
+                            players_queue.put_nowait(player)
+                        continue
+
+                    # change to the next state
+                    game.state = "PLAYING"
 
                 elif game.state == "CALCULATING":
                     print("==================CALCULATING==================")
                     print("Calculating winner")
                     # calculate the winner of the round
-                    winner_player = game.round.calculate_winner_round()
                     game.calculate_player_lifes()
                     game.round.clean_round()
                     # game.calculate_next_dealer()
@@ -465,13 +466,7 @@ class Server:
                             message,
                             (self.next_node_address, self.send_port),
                         )
-
-                    # if game.round.round_number == self.turns:
-                    #     game.state = "GAME_OVER"
-                    #     continue
-
-                    game.state = "DEALING"
-
+                    exit()
                     print("==================CALCULATING==================")
 
             # this passes the token to the next player

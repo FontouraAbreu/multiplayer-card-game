@@ -38,6 +38,22 @@ class Game:
         self.current_player = 0
         self.state = State.WAITING
 
+    def new_round(self):
+        """
+        Função para criar uma nova rodada
+        """
+        self.round = Round(
+            self.round.round_number + 1, self.num_players, self.cards_per_player
+        )
+        # Distribui as cartas
+        for player in self.players:
+            player.cards = self.round.deal_cards()
+            player.has_cards = True
+            player.has_played = False
+            player.current_bet = 0
+            player.bets_won = 0
+            player.has_bet = False
+
     def put_players_queue(self, queue):
         """
         Função para adicionar os jogadores na fila de jogadores
@@ -81,7 +97,6 @@ class Game:
     def calculate_player_lifes(self):
         """
         Função para calcular a quantidade de vidas dos jogadores
-
         """
         # if the turns_won are different from the player's bet, the player loses a life
         for player in self.players:

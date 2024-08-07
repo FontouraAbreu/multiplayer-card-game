@@ -1,7 +1,3 @@
-SERVER_ADDRESS = ""
-PLAYERS = 2
-RECV_BUFFER = 1024
-
 MESSAGE_TEMPLATE = {
     "has_message": False,
     "broadcast": False,
@@ -32,6 +28,9 @@ the format is:
 }
 """
 
+SERVER_ADDRESS = ""
+RECV_BUFFER = 1024
+PLAYERS = 4
 # SERVER
 SERVER_LISTEN_PORT = 12345
 SERVER_SEND_PORT = 12346
@@ -67,7 +66,7 @@ NETWORK_CONNECTIONS = {
     "M2": {
         "address": "localhost",
         "listen_port": M2_LISTEN_PORT,
-        "send_port": SERVER_LISTEN_PORT,
+        "send_port": M2_SEND_PORT,
     },
     "M3": {
         "address": "localhost",

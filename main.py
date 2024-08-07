@@ -49,8 +49,11 @@ current_round_status = {
     "current_winning_player": None,
     "current_winning_player_lives": 0,
     "current_players_bets": [],
+    "cards_played": [],
 }
 # TODO USAR A CLASSE DECK PARA GERENCIAR AS INFORMAÇÕES DE CADA RODADA
+
+game_winners = []
 
 
 def main(args):
@@ -66,8 +69,10 @@ def main(args):
     listen_port = node_config["listen_port"]
     send_port = node_config["send_port"]
     if player_id == PLAYERS:
+        print(f"M0")
         next_node_address = NETWORK_CONNECTIONS["M0"]["address"]
     else:
+        print(f"M{player_id + 1}")
         next_node_address = NETWORK_CONNECTIONS[f"M{player_id + 1}"]["address"]
 
     # configuring listen socket
@@ -139,7 +144,8 @@ def main(args):
             continue
 
         if message["msg"]["type"] == "PLAYER_CARD":
-            print(message["msg"]["content"])
+            current_round_status["cards_played"].append(message["msg"]["content"])
+            # print(message["msg"]["content"])
             continue
 
         msg_type = message["msg"]["type"]
@@ -158,6 +164,7 @@ def main(args):
             # save the round number in the local round status
             current_round_status["round_number"] = message_content["round_num"]
 
+            print("")
             print(f"A manilha é {message_content['shackle']}")
             # save the shackle in the local round status
             current_round_status["shackle"] = message_content["shackle"]
@@ -186,11 +193,13 @@ def main(args):
                 )
 
             # print the player's lifes with hearts
+            print("")
             print("Suas vidas são:")
             for _ in range(current_round_status["current_player_lifes"]):
                 print("❤️", end="  ")
 
             # print the player's cards
+            print("")
             print("\nSuas cartas são:")
             for card in current_round_status["current_player_cards"]:
                 print(card)
@@ -198,6 +207,7 @@ def main(args):
             """
             In this state, the game will show the player's lifes and asks for the player's bet
             """
+            print("")
             print("Hora de apostar:")
             # ask the player for the bet
             print("Quantas rodadas você faz?")
@@ -206,14 +216,14 @@ def main(args):
             while bet != int(bet):
                 print("Digite apenas o número de rodadas que você faz!")
                 print("Faça uma nova aposta:")
-                bet = int(input())
+                bet = input()
 
             # retrieve the sum of the bets
             sum_of_bets = message["msg"]["content"] + bet
 
             # Last player must && sum of bets cannot be equal to the number of rounds
             while (
-                current_round_status["current_player_number"] == PLAYERS
+                current_round_status["current_player_number"] == PLAYERS + 1
                 and sum_of_bets == current_round_status["cards_per_player"]
             ):
                 print("A soma das apostas deve ser diferente do número de rodadas!")
@@ -225,6 +235,8 @@ def main(args):
                 print("Faça uma nova aposta:")
                 bet = int(input())
                 sum_of_bets = message["msg"]["content"] + bet
+
+            print("Esperando os outros jogadores apostarem...")
 
             # Send the player's bet
             current_player_bet = MESSAGE_TEMPLATE
@@ -260,9 +272,14 @@ def main(args):
                 print("")
                 print("Apostas:")
                 for bet in current_round_status["current_players_bets"]:
-                    print(
-                        f"\tJogador {bet['player']} Apostou {bet['bet']} rodada(s)!\n"
-                    )
+                    print(f"\tJogador {bet['player']} Apostou {bet['bet']} rodada(s)!")
+
+            # print the played cards
+            if len(current_round_status["cards_played"]) > 0:
+                print("")
+                print("Cartas jogadas:")
+                for card_played in current_round_status["cards_played"]:
+                    print(card_played)
 
             # if there is a message content
             # extract the current round winning status
@@ -284,12 +301,6 @@ def main(args):
             print(f"A manilha é {current_round_status['shackle']}")
             print("")
 
-            # print the players lifes with hearts
-            print("Suas vidas são:")
-            for _ in range(current_round_status["current_player_lifes"]):
-                print("❤️", end="  ")
-            print("")
-
             print("\nSuas cartas são:")
             for i, card in enumerate(current_round_status["current_player_cards"]):
                 print(f"{i} - {card}")
@@ -303,6 +314,7 @@ def main(args):
                 print("Carta inválida, tente novamente")
                 card_num = input()
 
+            print("Esperando os outros jogadores jogarem...")
             # Get card from player's hand
             card = current_round_status["current_player_cards"].pop(int(card_num) - 1)
 
@@ -330,6 +342,9 @@ def main(args):
             """
             print("=----= FIM DO TURNO =----=")
 
+            # reset cards played
+            current_round_status["cards_played"] = []
+
             # print the winner of the round
             if message["msg"]["content"]["winner"] == player_id:
                 print("Parabéns! Você ganhou o turno")
@@ -349,53 +364,31 @@ def main(args):
                     print(
                         f"Jogador {bet['player']} apostou {bet['bet']} rodada(s) e ganhou {bet['turns_won']}"
                     )
-                # if bet["player"] == message["msg"]["content"]["winner"]:
-                #     continue
-
-                # who_bet = (
-                #     "você ganhou! Você já ganhou"
-                #     if bet["player"] == player_id
-                #     else f"o jogador {bet['player']} ganhou! Ele(a) já ganhou"
-                # )
-
-                # # yellow: bellow the player's bet
-                # if bet["turns_won"] < bet["bet"]:
-                #     print(
-                #         f"{who_bet} \033[91m({bet['turns_won']}/{bet['bet']})\033[0m turnos"
-                #     )
-                # # green: exactly the player's bet
-                # elif bet["turns_won"] == bet["bet"]:
-                #     print(
-                #         f"{who_bet} \033[92m({bet['turns_won']}/{bet['bet']})\033[0m turnos"
-                #     )
-                # # red: above the player's bet
-                # else:
-                #     print(
-                #         f"{who_bet} \033[93m({bet['turns_won']}/{bet['bet']})\033[0m turnos"
-                #     )
 
         elif msg_type == "WINNER":
             """
             In this state, the game will show the winner of the round and some information about the players
             """
-            print("=----= FIM DA RODADA =----=")
+            # clear the terminal
+
+            print("=----= FIM DO JOGO =----=")
 
             # print the winner of the round
-            if message["msg"]["content"]["winner"] == player_id:
-                print("Parabéns! Você ganhou a rodada")
-                current_round_status["current_won_rounds"] += 1
-            else:
-                print(
-                    f"O jogador {message['msg']['content']['winner']} ganhou a rodada"
-                )
+            print("O jogo chegou ao fim!\n")
 
             # print the players lifes with hearts
-            print("Vidas dos jogadores:")
+            print("Os jogadores que sobreviveram foram:")
             for player in message["msg"]["content"]["players"]:
                 lifes_emoji = "❤️  " * player["lifes"]
-                print(f"Jogador {player['port']} - {lifes_emoji}")
                 if player["port"] == player_id:
-                    current_round_status["current_player_lifes"] = player["lifes"]
+                    if player["lifes"] <= 0:
+                        print(
+                            "Você perdeu todas as suas vidas e não sobreviveu ao jogo!"
+                        )
+                    else:
+                        print(f"Você - {lifes_emoji}")
+                else:
+                    print(f"Jogador {player['port']} - {lifes_emoji}")
 
         # hop to the next player
         current_round_status["current_player_number"] += (

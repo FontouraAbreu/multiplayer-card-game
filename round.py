@@ -103,5 +103,14 @@ class Round:
         # Vencedor da rodada
         return winner_player
 
+    def calculate_winner(self):
+        """
+        Função para calcular o vencedor da rodada
+        return: jogador vencedor
+        """
+        # Encontrar o jogador com o maior número de turnos ganhos
+        winner = max(self.bets, key=lambda x: x["turns_won"])
+        return winner["player"]
+
     def __repr__(self):
         return f"Round {self.round_number} with {self.num_players} players, shackled at {self.shackle}"
