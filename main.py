@@ -65,7 +65,6 @@ def main(args):
 
     # self node config
     node_config = NETWORK_CONNECTIONS[f"M{player_id}"]
-    listen_node = f"M{player_id-1}" if player_id > 1 else "M0"
     listen_address = node_config["address"]
     listen_port = node_config["listen_port"]
     send_port = node_config["send_port"]
@@ -78,9 +77,9 @@ def main(args):
 
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen_socket.bind((listen_node, listen_port))
+    listen_socket.bind((listen_address, listen_port))
 
-    print("ouvindo em", listen_node, listen_port)
+    print("ouvindo em", listen_address, listen_port)
 
     print("Esperando os jogadores se conectarem e o jogo começar...")
     print(
