@@ -54,27 +54,27 @@ M4_SEND_PORT = SERVER_LISTEN_PORT
 
 NETWORK_CONNECTIONS = {
     "M0": {
-        "address": "localhost",
+        "address": "j22",
         "listen_port": SERVER_LISTEN_PORT,
         "send_port": SERVER_SEND_PORT,
     },
     "M1": {
-        "address": "localhost",
+        "address": "j20",
         "listen_port": M1_LISTEN_PORT,
         "send_port": M1_SEND_PORT,
     },
     "M2": {
-        "address": "localhost",
+        "address": "j19",
         "listen_port": M2_LISTEN_PORT,
         "send_port": M2_SEND_PORT,
     },
     "M3": {
-        "address": "localhost",
+        "address": "j18",
         "listen_port": M3_LISTEN_PORT,
         "send_port": M3_SEND_PORT,
     },
     "M4": {
-        "address": "localhost",
+        "address": "h13",
         "listen_port": M4_LISTEN_PORT,
         "send_port": M4_SEND_PORT,
     },
