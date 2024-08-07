@@ -65,6 +65,7 @@ def main(args):
 
     # self node config
     node_config = NETWORK_CONNECTIONS[f"M{player_id}"]
+    listen_node = f"M{player_id-1}" if player_id > 1 else "M0"
     listen_address = node_config["address"]
     listen_port = node_config["listen_port"]
     send_port = node_config["send_port"]
