@@ -44,7 +44,7 @@ def send_message(listen_socket, send_socket, message: bytes, address):
     """
     # print("size of the filled message:", sys.getsizeof(message))
     # print("Sending message and waiting for ACK/NACK:", message)
-    # print("Address:", address)
+    print("Address:", address)
     try:
         send_socket.sendto(message, address)
     except socket.error as e:

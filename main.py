@@ -109,6 +109,7 @@ def main(args):
             "M{}".format(player_id),
             (next_node_address, SEND_PORT),
         )
+        print(f"Received message from server: {message}")
         if message is None:
             # print("Message is None")
             message = MESSAGE_TEMPLATE
