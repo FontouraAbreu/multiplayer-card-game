@@ -22,6 +22,8 @@ from config import (
     RECV_BUFFER,
     NETWORK_CONNECTIONS,
     MESSAGE_TEMPLATE,
+    LISTEN_PORT,
+    SEND_PORT,
 )
 
 players_queue = asyncio.Queue()
@@ -40,7 +42,8 @@ class Server:
         self.listen_socket = None
         self.send_socket = None
         self.next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
-        self.send_port = NETWORK_CONNECTIONS["M0"]["send_port"]
+        # self.send_port = NETWORK_CONNECTIONS["M1"]["listen_port"]
+        self.send_port = SEND_PORT
         self.current_turn = {}
         self.game_winners = []
 
@@ -54,11 +57,12 @@ class Server:
         listen_port = previous_node["send_port"]
         send_port = config["send_port"]
         next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
+        target_port = NETWORK_CONNECTIONS["M1"]["listen_port"]
 
         # configuring listening socket
         self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.listen_socket.bind((listen_address, listen_port))
-        print(f"Server listening on {listen_address}:{listen_port}")
+        self.listen_socket.bind((listen_address, LISTEN_PORT))
+        print(f"Server listening on {listen_address}:{LISTEN_PORT}")
         print("Waiting for connection... Press Enter when all players are listening")
         input()
 

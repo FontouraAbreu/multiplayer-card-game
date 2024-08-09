@@ -25,6 +25,8 @@ from config import (
     RECV_BUFFER,
     NETWORK_CONNECTIONS,
     MESSAGE_TEMPLATE,
+    LISTEN_PORT,
+    SEND_PORT,
 )
 
 
@@ -66,13 +68,8 @@ def main(args):
     # self node config
     node_config = NETWORK_CONNECTIONS[f"M{player_id}"]
     # the listen address must be the previous node address
-    if player_id == 1:
-        listen_address = NETWORK_CONNECTIONS["M0"]["address"]
-        listen_port = NETWORK_CONNECTIONS["M0"]["send_port"]
-    else:
-        listen_address = NETWORK_CONNECTIONS[f"M{player_id - 1}"]["address"]
-        listen_port = NETWORK_CONNECTIONS[f"M{player_id - 1}"]["send_port"]
-    send_port = node_config["send_port"]
+    listen_address = node_config["address"]
+    # send_port = node_config["send_port"]
     if player_id == PLAYERS:
         print(f"M0")
         next_node_address = NETWORK_CONNECTIONS["M0"]["address"]
@@ -82,9 +79,9 @@ def main(args):
 
     # configuring listen socket
     listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen_socket.bind((listen_address, listen_port))
+    listen_socket.bind((listen_address, LISTEN_PORT))
 
-    print("ouvindo em", listen_address, listen_port)
+    print("ouvindo em", listen_address, LISTEN_PORT)
 
     print("Esperando os jogadores se conectarem e o jogo começar...")
     print(
@@ -95,7 +92,7 @@ def main(args):
     # configuring send socket
     send_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    print("enviando em ", next_node_address, send_port)
+    print("enviando em ", next_node_address, SEND_PORT)
 
     message = MESSAGE_TEMPLATE
 
@@ -110,7 +107,7 @@ def main(args):
             listen_socket,
             send_socket,
             "M{}".format(player_id),
-            (next_node_address, send_port),
+            (next_node_address, SEND_PORT),
         )
         if message is None:
             # print("Message is None")
@@ -129,7 +126,7 @@ def main(args):
             listen_socket,
             message,
             "M{}".format(player_id),
-            (next_node_address, send_port),
+            (next_node_address, SEND_PORT),
         )
         if sent is None:
             # print("Message sent is None")
@@ -265,7 +262,7 @@ def main(args):
                 listen_socket,
                 send_socket,
                 current_player_bet,
-                (next_node_address, send_port),
+                (next_node_address, SEND_PORT),
             )
 
         elif msg_type == "PLAYING":
@@ -342,7 +339,7 @@ def main(args):
                 listen_socket,
                 send_socket,
                 card_played,
-                (next_node_address, send_port),
+                (next_node_address, SEND_PORT),
             )
 
         elif msg_type == "TURN_WINNER":
