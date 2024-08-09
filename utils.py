@@ -165,9 +165,9 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
     Receives a message from the client without sending an ACK response
     """
     message, addr = listen_sock.recvfrom(RECV_BUFFER)
+    print("Received message:", message)
     if not message:
         return None
-    print("Received message:", message)
 
     # print("Received message:", message)
 
