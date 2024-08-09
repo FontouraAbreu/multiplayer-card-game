@@ -167,6 +167,7 @@ def receive_message_no_ack(listen_sock, send_socket, player_id, next_node):
     message, addr = listen_sock.recvfrom(RECV_BUFFER)
     if not message:
         return None
+    print("Received message:", message)
 
     # print("Received message:", message)
 
