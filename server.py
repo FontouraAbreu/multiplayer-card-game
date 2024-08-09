@@ -30,9 +30,9 @@ players_queue = asyncio.Queue()
 
 
 class Server:
-    def __init__(self, host, cards_per_player, turns):
+    def __init__(self, host, turns):
         self.host = host
-        self.cards_per_player = cards_per_player
+        self.cards_per_player = turns
         self.turns = turns
         self.clients = [i for i in range(1, PLAYERS + 1)]
         print("Clients:", self.clients)
@@ -485,5 +485,5 @@ class Server:
 
 if __name__ == "__main__":
     args = parse_server_args()
-    server = Server(SERVER_ADDRESS, args.cards_per_player, args.turns)
+    server = Server(SERVER_ADDRESS, args.turns)
     server.start()

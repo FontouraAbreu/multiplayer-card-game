@@ -30,9 +30,9 @@ the format is:
 
 SERVER_ADDRESS = ""
 RECV_BUFFER = 1024
-PLAYERS = 4
-SEND_PORT = 12345
-LISTEN_PORT = 12346
+PLAYERS = 2
+SEND_PORT = 42424
+LISTEN_PORT = 52453
 # SERVER
 SERVER_LISTEN_PORT = 12345
 SERVER_SEND_PORT = 12346
@@ -56,19 +56,19 @@ M4_SEND_PORT = SERVER_LISTEN_PORT
 
 NETWORK_CONNECTIONS = {
     "M0": {
-        "address": "j22",
+        "address": "h14",
         "listen_port": SERVER_LISTEN_PORT,
         "send_port": SERVER_SEND_PORT,
     },
     "M1": {
-        "address": "j20",
+        "address": "h13",
         "listen_port": M1_LISTEN_PORT,
         "send_port": M1_SEND_PORT,
     },
     "M2": {
         "address": "j19",
         "listen_port": M2_LISTEN_PORT,
-        "send_port": M2_SEND_PORT,
+        "send_port": M2_LISTEN_PORT,
     },
     "M3": {
         "address": "j18",
