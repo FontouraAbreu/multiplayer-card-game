@@ -46,8 +46,11 @@ class Server:
 
     def start(self):
         config = NETWORK_CONNECTIONS["M0"]
-        listen_address = config["address"]
-        listen_port = config["listen_port"]
+        # listen address and port must be the previous node's send address and port
+        previous_node = "M{}".format(PLAYERS - 1)
+        print("Previous node:", previous_node)
+        listen_address = previous_node["address"]
+        listen_port = previous_node["send_port"]
         send_port = config["send_port"]
         next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
 
