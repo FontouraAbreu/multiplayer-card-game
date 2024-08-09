@@ -53,7 +53,7 @@ class Server:
         previous_node = "M{}".format(PLAYERS - 1)
         previous_node = NETWORK_CONNECTIONS[previous_node]
         print("Previous node:", previous_node)
-        listen_address = previous_node["address"]
+        listen_address = config["address"]
         listen_port = previous_node["send_port"]
         send_port = config["send_port"]
         next_node_address = NETWORK_CONNECTIONS["M1"]["address"]
